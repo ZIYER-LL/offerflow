@@ -18,7 +18,7 @@ const settingsBody = document.getElementById("settingsBody");
 const apiBaseUrlInput = document.getElementById("apiBaseUrl");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
 
-const DEFAULT_API_BASE_URL = "http://localhost:3000";
+const DEFAULT_API_BASE_URL = "https://offerflow-six.vercel.app";
 
 // ─── Toast ─────────────────────────────────────────────────────
 

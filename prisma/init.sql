@@ -1,13 +1,13 @@
 -- OfferFlow 数据库初始化脚本
--- 在 Supabase SQL Editor 中执行此脚本（https://supabase.com → 你的项目 → SQL Editor）
+-- 在 Supabase SQL Editor 中执行此脚本
 
 CREATE TABLE IF NOT EXISTS "User" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "email" TEXT NOT NULL,
     "name" TEXT,
     "password" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS "Job" (
@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS "Job" (
     "source" TEXT,
     "jdSnapshot" TEXT,
     "notes" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "userId" TEXT NOT NULL,
     CONSTRAINT "Job_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -31,14 +31,14 @@ CREATE TABLE IF NOT EXISTS "Interview" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "round" INTEGER NOT NULL,
     "type" TEXT NOT NULL DEFAULT 'phone',
-    "scheduledAt" DATETIME,
+    "scheduledAt" TIMESTAMP(3),
     "interviewer" TEXT,
     "feedback" TEXT,
     "result" TEXT NOT NULL DEFAULT 'pending',
     "meetingUrl" TEXT,
     "jobId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Interview_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -47,14 +47,14 @@ CREATE INDEX IF NOT EXISTS "Job_userId_idx" ON "Job" ("userId");
 CREATE INDEX IF NOT EXISTS "Interview_jobId_idx" ON "Interview" ("jobId");
 CREATE INDEX IF NOT EXISTS "Interview_scheduledAt_idx" ON "Interview" ("scheduledAt");
 
--- Prisma migration tracking table (required by prisma db push)
+-- Prisma migration tracking table
 CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "checksum" TEXT NOT NULL,
-    "finished_at" DATETIME NOT NULL,
+    "finished_at" TIMESTAMP(3) NOT NULL,
     "migration_name" TEXT NOT NULL,
-    "rolled_back_at" DATETIME,
-    "started_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "rolled_back_at" TIMESTAMP(3),
+    "started_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "applied_steps_count" INTEGER NOT NULL DEFAULT 0
 );
 

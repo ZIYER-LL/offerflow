@@ -1,12 +1,19 @@
 {
   "manifest_version": 3,
   "name": "OfferFlow - 求职助手",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "一键保存招聘网站岗位信息到 OfferFlow 求职管理系统",
   "permissions": [
     "activeTab",
     "storage",
-    "scripting"
+    "scripting",
+    "cookies"
+  ],
+  "host_permissions": [
+    "https://offerflow-six.vercel.app/*",
+    "https://*.vercel.app/*",
+    "http://*/*",
+    "https://*/*"
   ],
   "action": {
     "default_popup": "popup.html",
