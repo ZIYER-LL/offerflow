@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: process.env.AUTH_SECRET || 'offerflow-dev-secret-do-not-use-in-production',
   providers: [
     Credentials({
       name: 'credentials',
