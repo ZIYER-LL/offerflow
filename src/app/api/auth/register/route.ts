@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('注册失败:', error);
     return NextResponse.json(
-      { success: false, error: '注册失败，请稍后重试' },
+      { success: false, error: '注册失败：' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     );
   }

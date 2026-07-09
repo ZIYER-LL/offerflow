@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET || 'offerflow-dev-secret-do-not-use-in-production',
+  trustHost: true,
   providers: [
     Credentials({
       name: 'credentials',
@@ -13,27 +14,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: '密码', type: 'password' },
       },
       authorize: async (credentials) => {
+        console.log('[Auth] authorize called, credentials:', JSON.stringify(credentials));
+
         if (!credentials?.email || !credentials?.password) {
+          console.log('[Auth] missing email or password');
           return null;
         }
 
+        const email = (credentials.email as string).toLowerCase().trim();
+        const password = credentials.password as string;
+
+        console.log('[Auth] looking up user:', email);
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
+          where: { email },
         });
 
         if (!user) {
+          console.log('[Auth] user not found');
           return null;
         }
 
-        const isValid = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        );
+        console.log('[Auth] user found, comparing password');
+        const isValid = await bcrypt.compare(password, user.password);
 
         if (!isValid) {
+          console.log('[Auth] password invalid');
           return null;
         }
 
+        console.log('[Auth] login success');
         return {
           id: user.id,
           email: user.email,
@@ -44,11 +53,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   pages: {
     signIn: '/login',
-    newUser: '/register',
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30天
+    maxAge: 30 * 24 * 60 * 60,
   },
   callbacks: {
     jwt: async ({ token, user }) => {
