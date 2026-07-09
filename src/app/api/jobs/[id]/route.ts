@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { auth } from '@/auth';
 
 // GET /api/jobs/[id] - 获取单个岗位详情
 export async function GET(
@@ -7,8 +8,13 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const job = await prisma.job.findUnique({
-      where: { id: params.id },
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: '未登录' }, { status: 401 });
+    }
+
+    const job = await prisma.job.findFirst({
+      where: { id: params.id, userId: session.user.id },
     });
 
     if (!job) {
@@ -40,12 +46,16 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: '未登录' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { title, company, location, salary, url, status, source, jdSnapshot, notes } = body;
 
-    // 检查岗位是否存在
-    const existing = await prisma.job.findUnique({
-      where: { id: params.id },
+    const existing = await prisma.job.findFirst({
+      where: { id: params.id, userId: session.user.id },
     });
 
     if (!existing) {
@@ -55,7 +65,6 @@ export async function PUT(
       );
     }
 
-    // 如果传入了 status，验证其合法性
     if (status) {
       const validStatuses = ['saved', 'applied', 'written_test', 'interview', 'offer', 'rejected', 'archived'];
       if (!validStatuses.includes(status)) {
@@ -66,7 +75,6 @@ export async function PUT(
       }
     }
 
-    // 构建更新数据
     const updateData: Record<string, string | null> = {};
     if (title !== undefined) updateData.title = title;
     if (company !== undefined) updateData.company = company;
@@ -105,9 +113,13 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // 检查岗位是否存在
-    const existing = await prisma.job.findUnique({
-      where: { id: params.id },
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: '未登录' }, { status: 401 });
+    }
+
+    const existing = await prisma.job.findFirst({
+      where: { id: params.id, userId: session.user.id },
     });
 
     if (!existing) {

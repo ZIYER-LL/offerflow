@@ -1,17 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { auth } from '@/auth';
 
-// GET /api/jobs/upcoming — 获取即将到来的面试和待完成的笔试
+export const dynamic = 'force-dynamic';
+
+// GET /api/jobs/upcoming — 获取当前用户即将到来的面试和待完成的笔试
 export async function GET(_req: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: '未登录' }, { status: 401 });
+    }
+
     const now = new Date();
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    // 1. 获取即将到来的面试（scheduledAt 在未来，且结果未定）
+    // 1. 获取即将到来的面试（只查当前用户的岗位）
     const upcomingInterviews = await prisma.interview.findMany({
       where: {
         result: 'pending',
         scheduledAt: { gte: now },
+        job: { userId: session.user.id },
       },
       orderBy: { scheduledAt: 'asc' },
       include: {
@@ -21,21 +30,21 @@ export async function GET(_req: NextRequest) {
       },
     });
 
-    // 2. 获取即将到来的笔试（状态为 written_test，且没有面试记录在未来）
+    // 2. 获取待完成的笔试（当前用户的）
     const pendingWrittenTests = await prisma.job.findMany({
       where: {
         status: 'written_test',
+        userId: session.user.id,
       },
       orderBy: { updatedAt: 'desc' },
     });
 
-    // 过滤掉已有未来面试的笔试岗位，避免重复
+    // 过滤掉已有未来面试的笔试岗位
     const interviewJobIds = new Set(upcomingInterviews.map((i) => i.jobId));
     const filteredWrittenTests = pendingWrittenTests.filter(
       (j) => !interviewJobIds.has(j.id)
     );
 
-    // 序列化日期
     const serialize = (data: unknown) => JSON.parse(JSON.stringify(data));
 
     return NextResponse.json({

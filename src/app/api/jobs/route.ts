@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { auth } from '@/auth';
 
-// GET /api/jobs - 获取所有岗位，支持按 status 筛选和排序
+// GET /api/jobs - 获取当前用户的岗位
 export async function GET(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: '未登录' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const sortBy = searchParams.get('sortBy') || 'createdAt';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    const where = status && status !== 'all' ? { status } : {};
+    const where: Record<string, unknown> = { userId: session.user.id };
+    if (status && status !== 'all') {
+      where.status = status;
+    }
 
     const validSortFields = ['status', 'createdAt', 'updatedAt', 'company', 'title'];
     const orderByField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
@@ -35,7 +44,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 将 Date 对象序列化为字符串
     const serializedJobs = filteredJobs.map((job) => ({
       ...job,
       createdAt: job.createdAt.toISOString(),
@@ -52,13 +60,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/jobs - 创建新岗位
+// POST /api/jobs - 创建新岗位（关联当前用户）
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: '未登录' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { title, company, location, salary, url, source, jdSnapshot, notes, status } = body;
 
-    // 验证必填字段
     if (!title || !company) {
       return NextResponse.json(
         { success: false, error: '岗位名称和公司名称为必填项' },
@@ -80,6 +92,7 @@ export async function POST(request: NextRequest) {
         jdSnapshot: jdSnapshot || null,
         notes: notes || null,
         status: jobStatus,
+        userId: session.user.id,
       },
     });
 

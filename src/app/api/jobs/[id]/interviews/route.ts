@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/auth';
 
 // GET /api/jobs/[id]/interviews — 获取某岗位的所有面试记录
 export async function GET(
@@ -7,7 +8,23 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return Response.json({ success: false, error: '未登录' }, { status: 401 });
+    }
+
     const { id } = await params;
+
+    // 检查岗位是否属于当前用户
+    const job = await prisma.job.findFirst({
+      where: { id, userId: session.user.id },
+    });
+    if (!job) {
+      return Response.json(
+        { success: false, error: '岗位不存在' },
+        { status: 404 }
+      );
+    }
 
     const interviews = await prisma.interview.findMany({
       where: { jobId: id },
@@ -30,11 +47,18 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return Response.json({ success: false, error: '未登录' }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await req.json();
 
-    // 检查岗位是否存在
-    const job = await prisma.job.findUnique({ where: { id } });
+    // 检查岗位是否属于当前用户
+    const job = await prisma.job.findFirst({
+      where: { id, userId: session.user.id },
+    });
     if (!job) {
       return Response.json(
         { success: false, error: '岗位不存在' },

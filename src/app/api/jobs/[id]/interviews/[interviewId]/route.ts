@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/auth';
 
 // PUT /api/jobs/[id]/interviews/[interviewId] — 更新面试记录
 export async function PUT(
@@ -7,8 +8,27 @@ export async function PUT(
   { params }: { params: Promise<{ id: string; interviewId: string }> }
 ) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return Response.json({ success: false, error: '未登录' }, { status: 401 });
+    }
+
     const { interviewId } = await params;
     const body = await req.json();
+
+    // 检查面试记录是否属于当前用户
+    const existing = await prisma.interview.findFirst({
+      where: {
+        id: interviewId,
+        job: { userId: session.user.id },
+      },
+    });
+    if (!existing) {
+      return Response.json(
+        { success: false, error: '面试记录不存在' },
+        { status: 404 }
+      );
+    }
 
     const updateData: Record<string, unknown> = {};
     if (body.round !== undefined) updateData.round = body.round;
@@ -42,7 +62,26 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; interviewId: string }> }
 ) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return Response.json({ success: false, error: '未登录' }, { status: 401 });
+    }
+
     const { interviewId } = await params;
+
+    // 检查面试记录是否属于当前用户
+    const existing = await prisma.interview.findFirst({
+      where: {
+        id: interviewId,
+        job: { userId: session.user.id },
+      },
+    });
+    if (!existing) {
+      return Response.json(
+        { success: false, error: '面试记录不存在' },
+        { status: 404 }
+      );
+    }
 
     await prisma.interview.delete({
       where: { id: interviewId },

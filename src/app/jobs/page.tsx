@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSession, signOut } from 'next-auth/react';
 import {
   Plus,
   Briefcase,
@@ -25,6 +26,8 @@ import {
   ExternalLink,
   AlertTriangle,
   Bell,
+  LogOut,
+  User,
 } from 'lucide-react';
 import { Job, JobStatus, STATUS_LABELS, STATUS_COLORS } from '@/types/job';
 import { cn } from '@/lib/utils';
@@ -86,6 +89,7 @@ const INTERVIEW_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function JobsPage() {
+  const { data: session } = useSession();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activeStatus, setActiveStatus] = useState<JobStatus | 'all'>('all');
   const [keyword, setKeyword] = useState('');
@@ -344,6 +348,21 @@ export default function JobsPage() {
                 <Plus className="w-4 h-4" />
                 添加岗位
               </Link>
+              {session?.user && (
+                <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-200">
+                  <span className="hidden sm:inline-flex items-center gap-1 text-xs text-slate-600">
+                    <User className="w-3.5 h-3.5" />
+                    {session.user.name || session.user.email}
+                  </span>
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="退出登录"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

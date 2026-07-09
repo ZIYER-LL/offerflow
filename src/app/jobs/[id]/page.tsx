@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useSession, signOut } from 'next-auth/react';
 import {
   ArrowLeft,
   MapPin,
@@ -24,6 +25,7 @@ import {
   X,
   Video,
   AlertTriangle,
+  LogOut,
 } from 'lucide-react';
 import {
   Job,
@@ -109,6 +111,7 @@ function isUpcoming(dateStr: string | null): boolean {
 }
 
 export default function JobDetailPage() {
+  const { data: session } = useSession();
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
@@ -389,12 +392,27 @@ export default function JobDetailPage() {
               <ArrowLeft className="w-4 h-4" />
               返回列表
             </Link>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {saving && (
                 <span className="inline-flex items-center gap-1 text-xs text-primary-600">
                   <Loader2 className="w-3 h-3 animate-spin" />
                   保存中
                 </span>
+              )}
+              {session?.user && (
+                <div className="flex items-center gap-2">
+                  <span className="hidden sm:inline-flex items-center gap-1 text-xs text-slate-600">
+                    <User className="w-3.5 h-3.5" />
+                    {session.user.name || session.user.email}
+                  </span>
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="退出登录"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
               )}
             </div>
           </div>

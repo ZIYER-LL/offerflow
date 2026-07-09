@@ -7,6 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String    // bcrypt hash
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  jobs          Job[]
+}
+
 model Job {
   id          String       @id @default(cuid())
   title       String
@@ -20,22 +30,26 @@ model Job {
   notes       String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   interviews  Interview[]
+
+  @@index([userId])
 }
 
 model Interview {
-  id        String   @id @default(cuid())
-  round     Int
-  type      String   @default("phone") // phone, video, onsite, hr
+  id          String   @id @default(cuid())
+  round       Int
+  type        String   @default("phone") // phone, video, onsite, hr
   scheduledAt DateTime?
   interviewer String?
-  feedback  String?
-  result    String   @default("pending") // pending, passed, failed, no_show
-  meetingUrl String? // 面试/笔试链接
-  jobId     String
-  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  feedback    String?
+  result      String   @default("pending") // pending, passed, failed, no_show
+  meetingUrl  String? // 面试/笔试链接
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([jobId])
   @@index([scheduledAt])
