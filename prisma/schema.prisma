@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -11,7 +11,7 @@ model User {
   id            String    @id @default(cuid())
   email         String    @unique
   name          String?
-  password      String    // bcrypt hash
+  password      String
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   jobs          Job[]
@@ -40,12 +40,12 @@ model Job {
 model Interview {
   id          String   @id @default(cuid())
   round       Int
-  type        String   @default("phone") // phone, video, onsite, hr
+  type        String   @default("phone")
   scheduledAt DateTime?
   interviewer String?
   feedback    String?
-  result      String   @default("pending") // pending, passed, failed, no_show
-  meetingUrl  String? // 面试/笔试链接
+  result      String   @default("pending")
+  meetingUrl  String?
   jobId       String
   job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
