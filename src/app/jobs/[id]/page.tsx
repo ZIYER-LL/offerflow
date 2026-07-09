@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -22,6 +22,8 @@ import {
   MessageSquare,
   Pencil,
   X,
+  Video,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   Job,
@@ -72,12 +74,38 @@ function formatDate(dateStr: string): string {
   });
 }
 
+function formatDateShort(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = date.getTime() - now.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+
+  if (diffHours < 0) return '已过期';
+  if (diffHours < 1) return '即将开始';
+  if (diffHours < 24) return `${diffHours} 小时后`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} 天后`;
+}
+
 function formatDateInput(dateStr: string | null): string {
   if (!dateStr) return '';
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return '';
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function isWithin24h(dateStr: string | null): boolean {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = date.getTime() - now.getTime();
+  return diffMs > 0 && diffMs <= 24 * 60 * 60 * 1000;
+}
+
+function isUpcoming(dateStr: string | null): boolean {
+  if (!dateStr) return false;
+  return new Date(dateStr).getTime() > Date.now();
 }
 
 export default function JobDetailPage() {
@@ -108,7 +136,20 @@ export default function JobDetailPage() {
     interviewer: '',
     feedback: '',
     result: 'pending' as InterviewResult,
+    meetingUrl: '',
   });
+
+  // 面试排序：未开始的在前（按时间升序），已结束的在后
+  const sortedInterviews = useMemo(() => {
+    const upcoming = interviews.filter((i) => isUpcoming(i.scheduledAt));
+    const past = interviews.filter((i) => !isUpcoming(i.scheduledAt));
+    upcoming.sort((a, b) => {
+      if (!a.scheduledAt) return 1;
+      if (!b.scheduledAt) return -1;
+      return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+    });
+    return [...upcoming, ...past];
+  }, [interviews]);
 
   const fetchJob = useCallback(async () => {
     try {
@@ -166,6 +207,7 @@ export default function JobDetailPage() {
       interviewer: '',
       feedback: '',
       result: 'pending',
+      meetingUrl: '',
     });
     setEditingInterview(null);
   }, [interviews.length]);
@@ -249,6 +291,7 @@ export default function JobDetailPage() {
       const body = {
         ...interviewForm,
         scheduledAt: interviewForm.scheduledAt || null,
+        meetingUrl: interviewForm.meetingUrl || null,
       };
 
       if (editingInterview) {
@@ -300,6 +343,7 @@ export default function JobDetailPage() {
       interviewer: interview.interviewer || '',
       feedback: interview.feedback || '',
       result: interview.result,
+      meetingUrl: interview.meetingUrl || '',
     });
     setShowInterviewForm(true);
   };
@@ -445,7 +489,7 @@ export default function JobDetailPage() {
         {/* 面试记录 */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-slate-900">面试记录</h2>
+            <h2 className="text-sm font-semibold text-slate-900">面试/笔试记录</h2>
             <button
               onClick={() => {
                 resetInterviewForm();
@@ -454,7 +498,7 @@ export default function JobDetailPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
-              添加面试
+              添加
             </button>
           </div>
 
@@ -464,7 +508,7 @@ export default function JobDetailPage() {
             </div>
           ) : interviews.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-sm text-slate-400">暂无面试记录</p>
+              <p className="text-sm text-slate-400">暂无面试/笔试记录</p>
               <button
                 onClick={() => {
                   resetInterviewForm();
@@ -472,74 +516,109 @@ export default function JobDetailPage() {
                 }}
                 className="mt-2 text-xs text-primary-600 hover:text-primary-700"
               >
-                添加第一条面试记录
+                添加第一条记录
               </button>
             </div>
           ) : (
             <div className="space-y-3">
-              {interviews.map((interview) => (
-                <div
-                  key={interview.id}
-                  className="border border-slate-200 rounded-lg p-4 hover:border-slate-300 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-semibold text-slate-900">
-                          第 {interview.round} 轮
-                        </span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                          {INTERVIEW_TYPE_LABELS[interview.type]}
-                        </span>
-                        <span
-                          className={cn(
-                            'text-xs px-2 py-0.5 rounded-full font-medium',
-                            INTERVIEW_RESULT_COLORS[interview.result]
+              {sortedInterviews.map((interview) => {
+                const within24h = isWithin24h(interview.scheduledAt);
+                const upcoming = isUpcoming(interview.scheduledAt);
+                return (
+                  <div
+                    key={interview.id}
+                    className={cn(
+                      'border rounded-lg p-4 transition-colors',
+                      within24h
+                        ? 'border-orange-300 bg-orange-50/50'
+                        : upcoming
+                          ? 'border-blue-200 bg-blue-50/30'
+                          : 'border-slate-200 hover:border-slate-300'
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="text-sm font-semibold text-slate-900">
+                            第 {interview.round} 轮
+                          </span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                            {INTERVIEW_TYPE_LABELS[interview.type]}
+                          </span>
+                          <span
+                            className={cn(
+                              'text-xs px-2 py-0.5 rounded-full font-medium',
+                              INTERVIEW_RESULT_COLORS[interview.result]
+                            )}
+                          >
+                            {INTERVIEW_RESULT_LABELS[interview.result]}
+                          </span>
+                          {within24h && (
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
+                              <AlertTriangle className="w-3 h-3" />
+                              即将到来
+                            </span>
                           )}
+                          {upcoming && interview.scheduledAt && !within24h && (
+                            <span className="text-xs text-blue-500 font-medium">
+                              {formatDateShort(interview.scheduledAt)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
+                          {interview.scheduledAt && (
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                              <Calendar className="w-3.5 h-3.5" />
+                              <span>{formatDate(interview.scheduledAt)}</span>
+                            </div>
+                          )}
+                          {interview.interviewer && (
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                              <User className="w-3.5 h-3.5" />
+                              <span>面试官/联系人：{interview.interviewer}</span>
+                            </div>
+                          )}
+                          {interview.meetingUrl && (
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <Video className="w-3.5 h-3.5 text-primary-500" />
+                              <a
+                                href={interview.meetingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary-600 hover:text-primary-700 underline underline-offset-2 truncate max-w-[300px] inline-block"
+                              >
+                                {interview.meetingUrl}
+                              </a>
+                            </div>
+                          )}
+                          {interview.feedback && (
+                            <div className="flex items-start gap-1.5 text-xs text-slate-500">
+                              <MessageSquare className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                              <span className="whitespace-pre-wrap">{interview.feedback}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => startEditInterview(interview)}
+                          className="p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded transition-colors"
+                          title="编辑"
                         >
-                          {INTERVIEW_RESULT_LABELS[interview.result]}
-                        </span>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteInterview(interview.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          title="删除"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                      <div className="space-y-1.5">
-                        {interview.scheduledAt && (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>{formatDate(interview.scheduledAt)}</span>
-                          </div>
-                        )}
-                        {interview.interviewer && (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                            <User className="w-3.5 h-3.5" />
-                            <span>面试官：{interview.interviewer}</span>
-                          </div>
-                        )}
-                        {interview.feedback && (
-                          <div className="flex items-start gap-1.5 text-xs text-slate-500">
-                            <MessageSquare className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                            <span className="whitespace-pre-wrap">{interview.feedback}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => startEditInterview(interview)}
-                        className="p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded transition-colors"
-                        title="编辑"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteInterview(interview.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                        title="删除"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -547,7 +626,7 @@ export default function JobDetailPage() {
           {showInterviewForm && (
             <div className="mt-4 border border-primary-200 rounded-lg p-4 bg-primary-50/50">
               <h3 className="text-sm font-semibold text-slate-900 mb-3">
-                {editingInterview ? '编辑面试记录' : '添加面试记录'}
+                {editingInterview ? '编辑记录' : '添加记录'}
               </h3>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
@@ -570,7 +649,7 @@ export default function JobDetailPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1">
-                      面试类型
+                      类型
                     </label>
                     <select
                       value={interviewForm.type}
@@ -593,7 +672,7 @@ export default function JobDetailPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1">
-                      面试时间
+                      时间
                     </label>
                     <input
                       type="datetime-local"
@@ -609,7 +688,7 @@ export default function JobDetailPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1">
-                      面试官
+                      联系人
                     </label>
                     <input
                       type="text"
@@ -627,9 +706,26 @@ export default function JobDetailPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    面试结果
+                    面邀链接
                   </label>
-                  <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={interviewForm.meetingUrl}
+                    onChange={(e) =>
+                      setInterviewForm((prev) => ({
+                        ...prev,
+                        meetingUrl: e.target.value,
+                      }))
+                    }
+                    placeholder="粘贴会议链接（腾讯会议、Zoom、飞书等）"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                    结果
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
                     {INTERVIEW_RESULT_OPTIONS.map((opt) => (
                       <button
                         key={opt.key}
@@ -660,7 +756,7 @@ export default function JobDetailPage() {
                         feedback: e.target.value,
                       }))
                     }
-                    placeholder="记录面试反馈、问题、感受..."
+                    placeholder="记录反馈、问题、感受..."
                     rows={3}
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400"
                   />

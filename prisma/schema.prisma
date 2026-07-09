@@ -31,10 +31,12 @@ model Interview {
   interviewer String?
   feedback  String?
   result    String   @default("pending") // pending, passed, failed, no_show
+  meetingUrl String? // 面试/笔试链接
   jobId     String
   job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([jobId])
+  @@index([scheduledAt])
 }

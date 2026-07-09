@@ -17,6 +17,14 @@ import {
   CheckSquare,
   Square,
   X,
+  Calendar,
+  Video,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  AlertTriangle,
+  Bell,
 } from 'lucide-react';
 import { Job, JobStatus, STATUS_LABELS, STATUS_COLORS } from '@/types/job';
 import { cn } from '@/lib/utils';
@@ -57,6 +65,26 @@ function formatDate(dateStr: string): string {
   });
 }
 
+function formatDateShort(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = date.getTime() - now.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+
+  if (diffHours < 0) return '已过期';
+  if (diffHours < 1) return '即将开始';
+  if (diffHours < 24) return `${diffHours} 小时后`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} 天后`;
+}
+
+const INTERVIEW_TYPE_LABELS: Record<string, string> = {
+  phone: '电话面试',
+  video: '视频面试',
+  onsite: '现场面试',
+  hr: 'HR面试',
+};
+
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activeStatus, setActiveStatus] = useState<JobStatus | 'all'>('all');
@@ -67,6 +95,22 @@ export default function JobsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [jobCounts, setJobCounts] = useState<Record<string, number>>({});
   const [showBatchStatusMenu, setShowBatchStatusMenu] = useState(false);
+
+  // 待办提醒
+  const [upcomingData, setUpcomingData] = useState<{
+    upcomingInterviews: Array<{
+      id: string;
+      round: number;
+      type: string;
+      scheduledAt: string;
+      job: { id: string; title: string; company: string; status: string };
+    }>;
+    pendingWrittenTests: Job[];
+    now: string;
+    in24h: string;
+  } | null>(null);
+  const [loadingUpcoming, setLoadingUpcoming] = useState(false);
+  const [showUpcoming, setShowUpcoming] = useState(true);
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -115,6 +159,21 @@ export default function JobsPage() {
     }
   }, []);
 
+  const fetchUpcoming = useCallback(async () => {
+    try {
+      setLoadingUpcoming(true);
+      const res = await fetch('/api/jobs/upcoming');
+      const data = await res.json();
+      if (data.success) {
+        setUpcomingData(data.data);
+      }
+    } catch (err) {
+      console.error('获取待办信息失败:', err);
+    } finally {
+      setLoadingUpcoming(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
@@ -122,6 +181,10 @@ export default function JobsPage() {
   useEffect(() => {
     fetchJobCounts();
   }, [fetchJobCounts]);
+
+  useEffect(() => {
+    fetchUpcoming();
+  }, [fetchUpcoming]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,10 +253,11 @@ export default function JobsPage() {
       setJobs((prev) => prev.filter((j) => !selectedIds.includes(j.id)));
       setSelectedIds([]);
       fetchJobCounts();
+      fetchUpcoming();
     } catch (err) {
       alert(err instanceof Error ? err.message : '删除失败');
     }
-  }, [selectedIds, fetchJobCounts]);
+  }, [selectedIds, fetchJobCounts, fetchUpcoming]);
 
   const handleBatchUpdateStatus = useCallback(
     async (newStatus: JobStatus) => {
@@ -212,11 +276,12 @@ export default function JobsPage() {
         setSelectedIds([]);
         setShowBatchStatusMenu(false);
         fetchJobCounts();
+        fetchUpcoming();
       } catch (err) {
         alert(err instanceof Error ? err.message : '更新失败');
       }
     },
-    [selectedIds, fetchJobCounts]
+    [selectedIds, fetchJobCounts, fetchUpcoming]
   );
 
   const handleDelete = useCallback(
@@ -229,17 +294,27 @@ export default function JobsPage() {
         setJobs((prev) => prev.filter((j) => j.id !== jobId));
         setSelectedIds((prev) => prev.filter((id) => id !== jobId));
         fetchJobCounts();
+        fetchUpcoming();
       } catch (err) {
         alert(err instanceof Error ? err.message : '删除失败');
       }
     },
-    [fetchJobCounts]
+    [fetchJobCounts, fetchUpcoming]
   );
 
   const handleStatusChange = (status: JobStatus | 'all') => {
     setActiveStatus(status);
     setSelectedIds([]);
   };
+
+  const totalUpcoming =
+    (upcomingData?.upcomingInterviews.length || 0) +
+    (upcomingData?.pendingWrittenTests.length || 0);
+  const within24hCount =
+    upcomingData?.upcomingInterviews.filter((i) => {
+      const diffMs = new Date(i.scheduledAt).getTime() - new Date(upcomingData.now).getTime();
+      return diffMs > 0 && diffMs <= 24 * 60 * 60 * 1000;
+    }).length || 0;
 
   return (
     <div className="min-h-screen">
@@ -305,6 +380,136 @@ export default function JobsPage() {
             </button>
           </div>
         </form>
+
+        {/* 待办提醒 */}
+        {!loadingUpcoming && totalUpcoming > 0 && (
+          <div className="mb-4">
+            <button
+              onClick={() => setShowUpcoming(!showUpcoming)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl hover:bg-orange-50/80 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Bell className="w-4 h-4 text-orange-500" />
+                <span className="text-sm font-semibold text-slate-900">
+                  待办提醒
+                </span>
+                {within24hCount > 0 && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
+                    {within24hCount} 个即将到来
+                  </span>
+                )}
+                <span className="text-xs text-slate-500">共 {totalUpcoming} 项</span>
+              </div>
+              {showUpcoming ? (
+                <ChevronUp className="w-4 h-4 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              )}
+            </button>
+
+            {showUpcoming && upcomingData && (
+              <div className="mt-2 space-y-2">
+                {/* 即将到来的面试 */}
+                {upcomingData.upcomingInterviews.map((interview) => {
+                  const diffMs =
+                    new Date(interview.scheduledAt).getTime() -
+                    new Date(upcomingData.now).getTime();
+                  const within24h = diffMs > 0 && diffMs <= 24 * 60 * 60 * 1000;
+                  return (
+                    <Link
+                      key={interview.id}
+                      href={`/jobs/${interview.job.id}`}
+                      className={cn(
+                        'block bg-white border rounded-xl p-4 hover:shadow-sm transition-all',
+                        within24h
+                          ? 'border-orange-300'
+                          : 'border-blue-200'
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={cn(
+                            'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5',
+                            within24h
+                              ? 'bg-orange-100 text-orange-600'
+                              : 'bg-blue-100 text-blue-600'
+                          )}
+                        >
+                          <Video className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-semibold text-slate-900">
+                              {interview.job.title}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {interview.job.company}
+                            </span>
+                          </div>
+                          <div className="flex items-center flex-wrap gap-2">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                              {INTERVIEW_TYPE_LABELS[interview.type] || interview.type} · 第{interview.round}轮
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                              <Calendar className="w-3 h-3" />
+                              {formatDate(interview.scheduledAt)}
+                            </span>
+                            {within24h && (
+                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
+                                <AlertTriangle className="w-3 h-3" />
+                                {formatDateShort(interview.scheduledAt)}
+                              </span>
+                            )}
+                            {!within24h && (
+                              <span className="text-xs text-blue-500 font-medium">
+                                {formatDateShort(interview.scheduledAt)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-slate-300 flex-shrink-0 mt-1" />
+                      </div>
+                    </Link>
+                  );
+                })}
+
+                {/* 待完成的笔试 */}
+                {upcomingData.pendingWrittenTests.map((job) => (
+                  <Link
+                    key={job.id}
+                    href={`/jobs/${job.id}`}
+                    className="block bg-white border border-amber-200 rounded-xl p-4 hover:shadow-sm transition-all"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-slate-900">
+                            {job.title}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {job.company}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
+                            待笔试
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            更新于 {formatDate(job.updatedAt)}
+                          </span>
+                        </div>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-slate-300 flex-shrink-0 mt-1" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 状态筛选 Tabs */}
         <div className="mb-4">

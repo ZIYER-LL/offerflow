@@ -19,6 +19,7 @@ export async function PUT(
     if (body.interviewer !== undefined) updateData.interviewer = body.interviewer || null;
     if (body.feedback !== undefined) updateData.feedback = body.feedback || null;
     if (body.result !== undefined) updateData.result = body.result;
+    if (body.meetingUrl !== undefined) updateData.meetingUrl = body.meetingUrl || null;
 
     const interview = await prisma.interview.update({
       where: { id: interviewId },

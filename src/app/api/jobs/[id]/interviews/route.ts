@@ -50,6 +50,7 @@ export async function POST(
         interviewer: body.interviewer || null,
         feedback: body.feedback || null,
         result: body.result || 'pending',
+        meetingUrl: body.meetingUrl || null,
         jobId: id,
       },
     });

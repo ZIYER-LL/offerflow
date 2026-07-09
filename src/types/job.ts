@@ -27,9 +27,11 @@ export interface Interview {
   interviewer: string | null;
   feedback: string | null;
   result: InterviewResult;
+  meetingUrl?: string | null;
   jobId: string;
   createdAt: string;
   updatedAt: string;
+  job?: Job;
 }
 
 export const INTERVIEW_TYPE_LABELS: Record<InterviewType, string> = {
