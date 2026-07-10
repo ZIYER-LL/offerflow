@@ -16,7 +16,8 @@ export interface Job {
   interviews?: Interview[];
 }
 
-export type InterviewType = 'phone' | 'video' | 'onsite' | 'hr';
+// Interview 现在同时包含面试和笔试，用 type 区分
+export type InterviewType = 'phone' | 'video' | 'onsite' | 'hr' | 'written_test';
 export type InterviewResult = 'pending' | 'passed' | 'failed' | 'no_show';
 
 export interface Interview {
@@ -24,7 +25,6 @@ export interface Interview {
   round: number;
   type: InterviewType;
   scheduledAt: string | null;
-  interviewer: string | null;
   feedback: string | null;
   result: InterviewResult;
   meetingUrl?: string | null;
@@ -39,6 +39,7 @@ export const INTERVIEW_TYPE_LABELS: Record<InterviewType, string> = {
   video: '视频面试',
   onsite: '现场面试',
   hr: 'HR面试',
+  written_test: '笔试',
 };
 
 export const INTERVIEW_RESULT_LABELS: Record<InterviewResult, string> = {

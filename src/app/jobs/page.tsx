@@ -109,7 +109,13 @@ export default function JobsPage() {
       scheduledAt: string;
       job: { id: string; title: string; company: string; status: string };
     }>;
-    pendingWrittenTests: Job[];
+    upcomingTests: Array<{
+      id: string;
+      round: number;
+      type: string;
+      scheduledAt: string | null;
+      job: { id: string; title: string; company: string; status: string };
+    }>;
     now: string;
     in24h: string;
   } | null>(null);
@@ -313,7 +319,7 @@ export default function JobsPage() {
 
   const totalUpcoming =
     (upcomingData?.upcomingInterviews.length || 0) +
-    (upcomingData?.pendingWrittenTests.length || 0);
+    (upcomingData?.upcomingTests.length || 0);
   const within24hCount =
     upcomingData?.upcomingInterviews.filter((i) => {
       const diffMs = new Date(i.scheduledAt).getTime() - new Date(upcomingData.now).getTime();
@@ -492,11 +498,11 @@ export default function JobsPage() {
                   );
                 })}
 
-                {/* 待完成的笔试 */}
-                {upcomingData.pendingWrittenTests.map((job) => (
+                {/* 即将到来的笔试 */}
+                {upcomingData.upcomingTests.map((test) => (
                   <Link
-                    key={job.id}
-                    href={`/jobs/${job.id}`}
+                    key={test.id}
+                    href={`/jobs/${test.job.id}`}
                     className="block bg-white border border-amber-200 rounded-xl p-4 hover:shadow-sm transition-all"
                   >
                     <div className="flex items-start gap-3">
@@ -506,19 +512,25 @@ export default function JobsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-sm font-semibold text-slate-900">
-                            {job.title}
+                            {test.job.title}
                           </span>
                           <span className="text-xs text-slate-500">
-                            {job.company}
+                            {test.job.company}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
                             待笔试
                           </span>
-                          <span className="text-xs text-slate-500">
-                            更新于 {formatDate(job.updatedAt)}
-                          </span>
+                          {test.scheduledAt && (
+                            <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                              <Calendar className="w-3 h-3" />
+                              {formatDate(test.scheduledAt)}
+                            </span>
+                          )}
+                          {!test.scheduledAt && (
+                            <span className="text-xs text-slate-400">时间待定</span>
+                          )}
                         </div>
                       </div>
                       <ExternalLink className="w-4 h-4 text-slate-300 flex-shrink-0 mt-1" />

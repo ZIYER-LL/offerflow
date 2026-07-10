@@ -5,7 +5,7 @@ import { unstable_cache } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/jobs/upcoming — 获取当前用户即将到来的面试和待完成的笔试（带缓存）
+// GET /api/jobs/upcoming — 获取当前用户即将到来的面试和笔试
 export async function GET(_req: NextRequest) {
   try {
     const session = await auth();
@@ -20,11 +20,12 @@ export async function GET(_req: NextRequest) {
         const now = new Date();
         const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-        // 1. 获取即将到来的面试
+        // 1. 获取即将到来的面试（非笔试类型）
         const upcomingInterviews = await prisma.interview.findMany({
           where: {
             result: 'pending',
             scheduledAt: { gte: now },
+            type: { not: 'written_test' },
             job: { userId: session.user.id },
           },
           orderBy: { scheduledAt: 'asc' },
@@ -35,25 +36,30 @@ export async function GET(_req: NextRequest) {
           },
         });
 
-        // 2. 获取待完成的笔试
-        const pendingWrittenTests = await prisma.job.findMany({
+        // 2. 获取即将到来的笔试
+        const upcomingTests = await prisma.interview.findMany({
           where: {
-            status: 'written_test',
-            userId: session.user.id,
+            result: 'pending',
+            type: 'written_test',
+            job: { userId: session.user.id },
+            OR: [
+              { scheduledAt: { gte: now } },
+              { scheduledAt: null },
+            ],
           },
-          orderBy: { updatedAt: 'desc' },
+          orderBy: { scheduledAt: { sort: 'asc', nulls: 'last' } },
+          include: {
+            job: {
+              select: { id: true, title: true, company: true, status: true },
+            },
+          },
         });
-
-        const interviewJobIds = new Set(upcomingInterviews.map((i) => i.jobId));
-        const filteredWrittenTests = pendingWrittenTests.filter(
-          (j) => !interviewJobIds.has(j.id)
-        );
 
         const serialize = (data: unknown) => JSON.parse(JSON.stringify(data));
 
         return {
           upcomingInterviews: serialize(upcomingInterviews),
-          pendingWrittenTests: serialize(filteredWrittenTests),
+          upcomingTests: serialize(upcomingTests),
           now: now.toISOString(),
           in24h: in24h.toISOString(),
         };
