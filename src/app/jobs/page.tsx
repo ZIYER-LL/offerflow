@@ -81,6 +81,16 @@ function formatDateShort(dateStr: string): string {
   return `${diffDays} 天后`;
 }
 
+function formatDateAbsolute(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('zh-CN', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 const INTERVIEW_TYPE_LABELS: Record<string, string> = {
   phone: '电话面试',
   video: '视频面试',
@@ -477,7 +487,7 @@ export default function JobsPage() {
                             </span>
                             <span className="inline-flex items-center gap-1 text-xs text-slate-500">
                               <Calendar className="w-3 h-3" />
-                              {formatDate(interview.scheduledAt)}
+                              {formatDateAbsolute(interview.scheduledAt)}
                             </span>
                             {within24h && (
                               <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
@@ -536,7 +546,7 @@ export default function JobsPage() {
                             {test.scheduledAt && (
                               <span className="inline-flex items-center gap-1 text-xs text-slate-500">
                                 <Calendar className="w-3 h-3" />
-                                {formatDate(test.scheduledAt)}
+                                {formatDateAbsolute(test.scheduledAt)}
                               </span>
                             )}
                             {test.scheduledAt && within24h && (
