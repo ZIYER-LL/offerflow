@@ -499,44 +499,67 @@ export default function JobsPage() {
                 })}
 
                 {/* 即将到来的笔试 */}
-                {upcomingData.upcomingTests.map((test) => (
-                  <Link
-                    key={test.id}
-                    href={`/jobs/${test.job.id}`}
-                    className="block bg-white border border-amber-200 rounded-xl p-4 hover:shadow-sm transition-all"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-semibold text-slate-900">
-                            {test.job.title}
-                          </span>
-                          <span className="text-xs text-slate-500">
-                            {test.job.company}
-                          </span>
+                {upcomingData.upcomingTests.map((test) => {
+                  const diffMs = test.scheduledAt
+                    ? new Date(test.scheduledAt).getTime() - new Date(upcomingData.now).getTime()
+                    : -1;
+                  const within24h = diffMs > 0 && diffMs <= 24 * 60 * 60 * 1000;
+                  return (
+                    <Link
+                      key={test.id}
+                      href={`/jobs/${test.job.id}`}
+                      className={cn(
+                        'block bg-white border rounded-xl p-4 hover:shadow-sm transition-all',
+                        within24h ? 'border-orange-300' : 'border-amber-200'
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={cn(
+                          'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5',
+                          within24h ? 'bg-orange-100 text-orange-600' : 'bg-amber-100 text-amber-600'
+                        )}>
+                          <FileText className="w-4 h-4" />
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-                            待笔试
-                          </span>
-                          {test.scheduledAt && (
-                            <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                              <Calendar className="w-3 h-3" />
-                              {formatDate(test.scheduledAt)}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-semibold text-slate-900">
+                              {test.job.title}
                             </span>
-                          )}
-                          {!test.scheduledAt && (
-                            <span className="text-xs text-slate-400">时间待定</span>
-                          )}
+                            <span className="text-xs text-slate-500">
+                              {test.job.company}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
+                              待笔试
+                            </span>
+                            {test.scheduledAt && (
+                              <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                                <Calendar className="w-3 h-3" />
+                                {formatDate(test.scheduledAt)}
+                              </span>
+                            )}
+                            {test.scheduledAt && within24h && (
+                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
+                                <AlertTriangle className="w-3 h-3" />
+                                {formatDateShort(test.scheduledAt)}
+                              </span>
+                            )}
+                            {test.scheduledAt && !within24h && (
+                              <span className="text-xs text-blue-500 font-medium">
+                                {formatDateShort(test.scheduledAt)}
+                              </span>
+                            )}
+                            {!test.scheduledAt && (
+                              <span className="text-xs text-slate-400">时间待定</span>
+                            )}
+                          </div>
                         </div>
+                        <ExternalLink className="w-4 h-4 text-slate-300 flex-shrink-0 mt-1" />
                       </div>
-                      <ExternalLink className="w-4 h-4 text-slate-300 flex-shrink-0 mt-1" />
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>
