@@ -695,85 +695,117 @@ export default function JobsPage() {
                 全选
               </button>
             </div>
-            {jobs.map((job) => (
-              <div
-                key={job.id}
-                className={cn(
-                  'bg-white rounded-xl border p-5 hover:shadow-md transition-all group',
-                  selectedIds.includes(job.id)
-                    ? 'border-primary-300 ring-1 ring-primary-200'
-                    : 'border-slate-200 hover:border-slate-300'
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <button
-                    onClick={() => toggleSelectJob(job.id)}
-                    className="mt-1 flex-shrink-0 text-slate-400 hover:text-primary-500 transition-colors"
-                  >
-                    {selectedIds.includes(job.id) ? (
-                      <CheckSquare className="w-5 h-5 text-primary-500" />
-                    ) : (
-                      <Square className="w-5 h-5" />
-                    )}
-                  </button>
-                  <Link href={`/jobs/${job.id}`} className="flex-1 min-w-0 block">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-base font-semibold text-slate-900 truncate group-hover:text-primary-600 transition-colors">
-                        {job.title}
-                      </h3>
-                    </div>
-                    <p className="text-sm text-slate-600 mb-3">{job.company}</p>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                      {job.location && (
-                        <span className="inline-flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {job.location}
-                        </span>
-                      )}
-                      {job.salary && (
-                        <span className="inline-flex items-center gap-1">
-                          <DollarSign className="w-3 h-3" />
-                          {job.salary}
-                        </span>
-                      )}
-                      {job.source && (
-                        <span className="inline-flex items-center gap-1">
-                          <Globe className="w-3 h-3" />
-                          {job.source}
-                        </span>
-                      )}
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {formatDate(job.createdAt)}
-                      </span>
-                    </div>
-                    {job.notes && (
-                      <p className="mt-3 text-xs text-slate-400 line-clamp-1 border-t border-slate-100 pt-3">
-                        {job.notes}
-                      </p>
-                    )}
-                  </Link>
-                  <div className="flex-shrink-0 flex items-start gap-2 relative z-10">
-                    <span
-                      className={cn(
-                        'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium',
-                        STATUS_COLORS[job.status]
-                      )}
-                    >
-                      {STATUS_LABELS[job.status]}
-                    </span>
+            {jobs.map((job) => {
+              const ev = job.upcomingEvent;
+              const isUrgent = ev?.isWithin24h;
+              return (
+                <div
+                  key={job.id}
+                  className={cn(
+                    'bg-white rounded-xl border p-5 hover:shadow-md transition-all group',
+                    selectedIds.includes(job.id)
+                      ? 'border-primary-300 ring-1 ring-primary-200'
+                      : isUrgent
+                        ? 'border-orange-300 bg-orange-50/20'
+                        : 'border-slate-200 hover:border-slate-300'
+                  )}
+                >
+                  <div className="flex items-start gap-3">
                     <button
-                      type="button"
-                      onClick={() => handleDelete(job.id, job.title)}
-                      className="relative z-10 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
-                      title="删除岗位"
+                      onClick={() => toggleSelectJob(job.id)}
+                      className="mt-1 flex-shrink-0 text-slate-400 hover:text-primary-500 transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {selectedIds.includes(job.id) ? (
+                        <CheckSquare className="w-5 h-5 text-primary-500" />
+                      ) : (
+                        <Square className="w-5 h-5" />
+                      )}
                     </button>
+                    <Link href={`/jobs/${job.id}`} className="flex-1 min-w-0 block">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-base font-semibold text-slate-900 truncate group-hover:text-primary-600 transition-colors">
+                          {job.title}
+                        </h3>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-2">{job.company}</p>
+
+                      {/* 即将到来的笔面试提醒 */}
+                      {ev && (
+                        <div className={cn(
+                          'flex items-center gap-2 mb-2 text-xs',
+                          isUrgent ? 'text-orange-700' : 'text-blue-600'
+                        )}>
+                          {isUrgent ? (
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                          ) : (
+                            <Calendar className="w-3.5 h-3.5" />
+                          )}
+                          <span className="font-medium">
+                            {ev.typeLabel}
+                            {ev.scheduledAt
+                              ? ` · ${formatDateShort(ev.scheduledAt)}`
+                              : ' · 时间待定'}
+                          </span>
+                          {isUrgent && (
+                            <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-semibold">
+                              即将开始
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                        {job.location && (
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {job.location}
+                          </span>
+                        )}
+                        {job.salary && (
+                          <span className="inline-flex items-center gap-1">
+                            <DollarSign className="w-3 h-3" />
+                            {job.salary}
+                          </span>
+                        )}
+                        {job.source && (
+                          <span className="inline-flex items-center gap-1">
+                            <Globe className="w-3 h-3" />
+                            {job.source}
+                          </span>
+                        )}
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {formatDate(job.createdAt)}
+                        </span>
+                      </div>
+                      {job.notes && (
+                        <p className="mt-3 text-xs text-slate-400 line-clamp-1 border-t border-slate-100 pt-3">
+                          {job.notes}
+                        </p>
+                      )}
+                    </Link>
+                    <div className="flex-shrink-0 flex items-start gap-2 relative z-10">
+                      <span
+                        className={cn(
+                          'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium',
+                          STATUS_COLORS[job.status]
+                        )}
+                      >
+                        {STATUS_LABELS[job.status]}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(job.id, job.title)}
+                        className="relative z-10 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
+                        title="删除岗位"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

@@ -1,5 +1,15 @@
 export type JobStatus = 'saved' | 'applied' | 'written_test' | 'interview' | 'offer' | 'rejected' | 'archived';
 
+export interface UpcomingEvent {
+  id: string;
+  type: InterviewType;
+  typeLabel: string;
+  scheduledAt: string | null;
+  isWithin24h: boolean;
+  isUpcoming: boolean;
+  meetingUrl?: string | null;
+}
+
 export interface Job {
   id: string;
   title: string;
@@ -14,6 +24,7 @@ export interface Job {
   createdAt: string;
   updatedAt: string;
   interviews?: Interview[];
+  upcomingEvent?: UpcomingEvent | null;
 }
 
 // Interview 现在同时包含面试和笔试，用 type 区分

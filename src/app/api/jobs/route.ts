@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { unstable_cache } from 'next/cache';
 
-// GET /api/jobs - 获取当前用户的岗位（带缓存）
+// GET /api/jobs - 获取当前用户的岗位（带缓存 + 最近笔面试事件）
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -13,13 +13,10 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const sortBy = searchParams.get('sortBy') || 'createdAt';
-    const sortOrder = searchParams.get('sortOrder') || 'desc';
     const keyword = searchParams.get('keyword')?.trim().toLowerCase();
 
-    const cacheKey = `${session.user.id}-${status}-${sortBy}-${sortOrder}-${keyword || ''}`;
+    const cacheKey = `${session.user.id}-${status}-${keyword || ''}`;
 
-    // 使用 Next.js 不稳定缓存，5 秒内重复请求直接返回缓存
     const getCachedJobs = unstable_cache(
       async () => {
         const where: Record<string, unknown> = { userId: session.user.id };
@@ -27,13 +24,16 @@ export async function GET(request: NextRequest) {
           where.status = status;
         }
 
-        const validSortFields = ['status', 'createdAt', 'updatedAt', 'company', 'title'];
-        const orderByField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
-        const orderDirection = sortOrder === 'asc' ? 'asc' : 'desc';
-
         const jobs = await prisma.job.findMany({
           where,
-          orderBy: { [orderByField]: orderDirection },
+          include: {
+            interviews: {
+              where: { result: 'pending' },
+              orderBy: [{ scheduledAt: 'asc' }],
+              take: 1,
+            },
+          },
+          orderBy: { createdAt: 'desc' },
         });
 
         let filteredJobs = jobs;
@@ -47,11 +47,57 @@ export async function GET(request: NextRequest) {
           );
         }
 
-        return filteredJobs.map((job) => ({
-          ...job,
-          createdAt: job.createdAt.toISOString(),
-          updatedAt: job.updatedAt.toISOString(),
-        }));
+        // 计算每个岗位的 upcomingEvent（最近的 pending 笔面试）
+        const now = Date.now();
+        const in24h = now + 24 * 60 * 60 * 1000;
+
+        const jobsWithEvent = filteredJobs.map((job) => {
+          const upcoming = job.interviews[0] || null;
+          let upcomingEvent = null;
+
+          if (upcoming) {
+            const eventTime = upcoming.scheduledAt ? new Date(upcoming.scheduledAt).getTime() : null;
+            upcomingEvent = {
+              id: upcoming.id,
+              type: upcoming.type,
+              typeLabel: upcoming.type === 'written_test' ? '笔试' : '面试',
+              scheduledAt: upcoming.scheduledAt ? new Date(upcoming.scheduledAt).toISOString() : null,
+              isWithin24h: eventTime ? eventTime > now && eventTime <= in24h : false,
+              isUpcoming: eventTime ? eventTime > now : true,
+              meetingUrl: upcoming.meetingUrl,
+            };
+          }
+
+          return {
+            ...job,
+            interviews: undefined,
+            createdAt: job.createdAt.toISOString(),
+            updatedAt: job.updatedAt.toISOString(),
+            upcomingEvent,
+          };
+        });
+
+        // 排序：24h 内 > 其他临期 > 无事件（各自内部按时间升序）
+        jobsWithEvent.sort((a, b) => {
+          const aEvent = a.upcomingEvent;
+          const bEvent = b.upcomingEvent;
+
+          if (aEvent?.isWithin24h && !bEvent?.isWithin24h) return -1;
+          if (!aEvent?.isWithin24h && bEvent?.isWithin24h) return 1;
+
+          if (aEvent?.isUpcoming && !bEvent?.isUpcoming) return -1;
+          if (!aEvent?.isUpcoming && bEvent?.isUpcoming) return 1;
+
+          if (aEvent?.scheduledAt && bEvent?.scheduledAt) {
+            return new Date(aEvent.scheduledAt).getTime() - new Date(bEvent.scheduledAt).getTime();
+          }
+          if (aEvent?.scheduledAt) return -1;
+          if (bEvent?.scheduledAt) return 1;
+
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        return jobsWithEvent;
       },
       ['jobs-list', cacheKey],
       { revalidate: 5, tags: ['jobs'] }
@@ -60,7 +106,6 @@ export async function GET(request: NextRequest) {
     const serializedJobs = await getCachedJobs();
 
     const response = NextResponse.json({ success: true, data: serializedJobs });
-    // 浏览器端也缓存 5 秒
     response.headers.set('Cache-Control', 'private, max-age=5, stale-while-revalidate=10');
     return response;
   } catch (error) {
