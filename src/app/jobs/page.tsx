@@ -68,13 +68,13 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function formatDateShort(dateStr: string): string {
+function formatDateCountdown(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = date.getTime() - now.getTime();
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
 
-  if (diffHours < 0) return '已过期';
+  if (diffMs <= 0) return ''; // 已过期，不显示倒计时
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   if (diffHours < 1) return '即将开始';
   if (diffHours < 24) return `${diffHours} 小时后`;
   const diffDays = Math.floor(diffHours / 24);
@@ -492,14 +492,15 @@ export default function JobsPage() {
                             {within24h && (
                               <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
                                 <AlertTriangle className="w-3 h-3" />
-                                {formatDateShort(interview.scheduledAt)}
+                                即将开始
                               </span>
                             )}
-                            {!within24h && (
-                              <span className="text-xs text-blue-500 font-medium">
-                                {formatDateShort(interview.scheduledAt)}
-                              </span>
-                            )}
+                            {!within24h && (() => {
+                              const cd = formatDateCountdown(interview.scheduledAt);
+                              return cd ? (
+                                <span className="text-xs text-blue-500 font-medium">{cd}</span>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                         <ExternalLink className="w-4 h-4 text-slate-300 flex-shrink-0 mt-1" />
@@ -552,14 +553,15 @@ export default function JobsPage() {
                             {test.scheduledAt && within24h && (
                               <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
                                 <AlertTriangle className="w-3 h-3" />
-                                {formatDateShort(test.scheduledAt)}
+                                即将开始
                               </span>
                             )}
-                            {test.scheduledAt && !within24h && (
-                              <span className="text-xs text-blue-500 font-medium">
-                                {formatDateShort(test.scheduledAt)}
-                              </span>
-                            )}
+                            {test.scheduledAt && !within24h && (() => {
+                              const cd = formatDateCountdown(test.scheduledAt);
+                              return cd ? (
+                                <span className="text-xs text-blue-500 font-medium">{cd}</span>
+                              ) : null;
+                            })()}
                             {!test.scheduledAt && (
                               <span className="text-xs text-slate-400">时间待定</span>
                             )}
@@ -776,14 +778,20 @@ export default function JobsPage() {
                           <span className="font-medium">
                             {ev.typeLabel}
                             {ev.scheduledAt
-                              ? ` · ${formatDateShort(ev.scheduledAt)}`
+                              ? ` · ${formatDateAbsolute(ev.scheduledAt)}`
                               : ' · 时间待定'}
                           </span>
-                          {isUrgent && (
+                          {ev.isWithin24h && (
                             <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-semibold">
                               即将开始
                             </span>
                           )}
+                          {!ev.isWithin24h && ev.isUpcoming && ev.scheduledAt && (() => {
+                            const cd = formatDateCountdown(ev.scheduledAt);
+                            return cd ? (
+                              <span className="text-xs text-blue-500 font-medium">{cd}</span>
+                            ) : null;
+                          })()}
                         </div>
                       )}
 
