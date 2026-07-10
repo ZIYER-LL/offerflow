@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { Job, JobStatus, STATUS_LABELS, STATUS_COLORS } from '@/types/job';
 import { cn } from '@/lib/utils';
+import Dashboard from './components/Dashboard';
 
 const ALL_STATUSES: { key: JobStatus | 'all'; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -132,6 +133,27 @@ export default function JobsPage() {
   const [loadingUpcoming, setLoadingUpcoming] = useState(false);
   const [showUpcoming, setShowUpcoming] = useState(true);
 
+  // 数据看板
+  const [statsData, setStatsData] = useState<{
+    overview: {
+      totalJobs: number;
+      totalInterviews: number;
+      totalTests: number;
+      upcomingEvents: number;
+      thisWeekCount: number;
+      thisMonthCount: number;
+    };
+    statusCounts: Record<string, number>;
+    funnel: {
+      saved: number; applied: number; written_test: number;
+      interview: number; offer: number;
+    };
+    conversionRates: {
+      appliedRate: number; interviewRate: number; offerRate: number;
+    };
+    last7Days: Array<{ date: string; label: string; count: number }>;
+  } | null>(null);
+
   const fetchJobs = useCallback(async () => {
     try {
       setLoading(true);
@@ -178,6 +200,18 @@ export default function JobsPage() {
       console.error('获取计数失败:', err);
     }
   }, []);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/jobs/stats');
+      const data = await res.json();
+      if (data.success) setStatsData(data.data);
+    } catch (err) {
+      console.error('获取统计数据失败:', err);
+    }
+  }, []);
+
+  useEffect(() => { fetchStats(); }, [fetchStats]);
 
   const fetchUpcoming = useCallback(async () => {
     try {
@@ -366,8 +400,17 @@ export default function JobsPage() {
               </Link>
               {session?.user && (
                 <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-200">
+                  {session.user.image ? (
+                    <img
+                      src={session.user.image}
+                      alt=""
+                      className="w-6 h-6 rounded-full"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <User className="w-4 h-4 text-slate-500" />
+                  )}
                   <span className="hidden sm:inline-flex items-center gap-1 text-xs text-slate-600">
-                    <User className="w-3.5 h-3.5" />
                     {session.user.name || session.user.email}
                   </span>
                   <button
@@ -385,6 +428,9 @@ export default function JobsPage() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* 数据看板 */}
+        {statsData && <Dashboard data={statsData} />}
+
         {/* 搜索栏 */}
         <form onSubmit={handleSearch} className="mb-4">
           <div className="flex gap-2">

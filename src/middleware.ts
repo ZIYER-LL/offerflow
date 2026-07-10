@@ -1,26 +1,32 @@
-import { auth } from '@/auth';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
 
-export default auth((req) => {
-  const { nextUrl } = req;
-  const isLoggedIn = !!req.auth;
+const SECRET = process.env.AUTH_SECRET || 'offerflow-dev-secret-do-not-use-in-production';
 
-  const publicPaths = ['/', '/login', '/register'];
-  const apiAuthPaths = ['/api/auth'];
+const publicPaths = ['/', '/login', '/register'];
+const apiAuthPaths = ['/api/auth'];
 
-  const isPublic = publicPaths.some((p) => nextUrl.pathname === p);
-  const isApiAuth = apiAuthPaths.some((p) => nextUrl.pathname.startsWith(p));
+export default async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
-  if (isApiAuth) {
+  if (apiAuthPaths.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+  if (publicPaths.some((p) => pathname === p)) {
     return NextResponse.next();
   }
 
-  if (!isLoggedIn && !isPublic) {
-    return NextResponse.redirect(new URL('/login', nextUrl));
+  const token = request.cookies.get('next-auth.session-token')?.value
+    || request.cookies.get('__Secure-next-auth.session-token')?.value;
+
+  if (!token) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.png$).*)'],
