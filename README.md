@@ -1,277 +1,523 @@
-# OfferFlow - 个人求职工作流助手
+# OfferFlow
 
-> 一款帮助求职者系统化管理整个求职流程的工具。由浏览器插件、Web 求职工作台组成，用户可以在浏览岗位页面时一键保存岗位，并追踪投递进度。
+> **从浏览岗位到推进 Offer 的个人求职工作流助手**
 
-## 产品简介
+**TRAE AI 创造力大赛全国复赛 350 强｜约前 1.2%**
 
-求职时，岗位信息分散在不同平台，投递进度容易记乱。OfferFlow 帮助你：
+OfferFlow 由 **Chrome 浏览器插件**与 **Web 求职工作台**组成，帮助求职者将分散在招聘平台、企业官网和 ATS 系统中的岗位信息快速沉淀到统一工作台，并持续管理投递、笔试、面试、复盘和求职数据。
 
-- **一键保存岗位** - 浏览招聘网站时，通过浏览器插件直接保存岗位信息
-- **JD 快照留存** - 自动保存职位描述，即使岗位下架也能随时回看
-- **投递进度追踪** - 7 种状态覆盖求职全流程：待投递 → 已投递 → 笔试 → 面试 → Offer
-- **备注与复盘** - 为每个岗位添加笔记，沉淀面试经验
+本项目在 **TRAE WORK** 协同开发环境中完成需求拆解、产品设计、跨端开发、问题定位与持续迭代。
 
-## 技术栈
+---
 
-| 层级 | 技术选型 |
-|------|---------|
-| Web 前端 | Next.js 14 + React 18 + TypeScript |
-| 样式 | Tailwind CSS 3.4 |
-| 数据库 | PostgreSQL + Prisma ORM 5.x |
-| 浏览器插件 | Chrome Extension Manifest V3（原生 JS/TS） |
-| 部署 | Vercel（前端） + Supabase / Neon（数据库，免费实例） |
+## 在线体验
 
-## 项目结构
+| 入口 | 地址 |
+| --- | --- |
+| Web 工作台 | [https://offerflow-six.vercel.app](https://offerflow-six.vercel.app) |
+| GitHub 仓库 | [https://github.com/ZIYER-LL/offerflow](https://github.com/ZIYER-LL/offerflow) |
+| 浏览器插件 | 克隆仓库后通过 Chrome 开发者模式加载 `extension/` |
 
+---
+
+## 为什么做 OfferFlow
+
+求职过程中，岗位信息分散在 BOSS、牛客、企业官网和海外 ATS 等多个平台。传统的 Excel、Notion 或手工记录方式存在明显问题：
+
+| 问题 | 典型表现 |
+| --- | --- |
+| 信息分散 | 岗位散落在多个招聘平台，无法统一管理 |
+| 重复录入 | 公司、岗位、JD 和链接需要手动复制 |
+| JD 易失效 | 岗位下架后难以回看原始职责和要求 |
+| 流程难追踪 | 投递、笔试、多轮面试和 Offer 状态容易混乱 |
+| 日程易遗漏 | 笔试截止时间和面试链接分散在聊天或邮件中 |
+| 复盘无沉淀 | 面试问题和失败原因难以跨岗位总结 |
+| 缺少数据反馈 | 难以直观看到求职进度和阶段转化情况 |
+
+OfferFlow 将这些分散动作连接成一条连续的求职工作流。
+
+---
+
+## 核心流程
+
+```mermaid
+flowchart LR
+    A[浏览招聘页面] --> B[Chrome 插件识别页面]
+    B --> C[提取岗位与 JD 信息]
+    C --> D[用户确认并一键保存]
+    D --> E[Web 工作台统一管理]
+    E --> F[推进投递状态]
+    F --> G[记录笔试与多轮面试]
+    G --> H[临期提醒与面试复盘]
+    H --> I[求职数据看板]
 ```
-offerflow/
-├── prisma/
-│   └── schema.prisma          # 数据库模型定义（Job 模型）
-├── extension/                  # Chrome 浏览器插件
-│   ├── manifest.json          # Manifest V3 配置
-│   ├── popup.html             # 弹出窗口 UI
-│   ├── popup.js               # 弹出窗口逻辑
-│   ├── content.js             # 内容脚本（岗位信息提取）
-│   ├── background.js          # Service Worker（API 通信）
-│   └── icons/                  # 插件图标
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx         # 根布局
-│   │   ├── page.tsx           # 首页（重定向到 /jobs）
-│   │   ├── globals.css        # 全局样式
-│   │   ├── api/
-│   │   │   └── jobs/
-│   │   │       ├── route.ts   # GET 列表 + POST 创建
-│   │   │       └── [id]/
-│   │   │           └── route.ts # GET 详情 + PUT 更新 + DELETE 删除
-│   │   └── jobs/
-│   │       ├── page.tsx        # 求职看板（核心页面）
-│   │       ├── [id]/
-│   │       │   └── page.tsx    # 岗位详情页
-│   │       └── new/
-│   │           └── page.tsx    # 手动添加岗位
-│   ├── lib/
-│   │   ├── prisma.ts          # Prisma 客户端单例
-│   │   └── utils.ts           # 工具函数
-│   └── types/
-│       └── job.ts             # TypeScript 类型定义
-├── package.json
-├── tsconfig.json
-├── tailwind.config.ts
-├── postcss.config.js
-├── next.config.js
-├── .env.example
-└── .gitignore
+
+从浏览岗位、一键采集、状态推进、笔面试记录、临期提醒到数据看板，OfferFlow 覆盖求职流程中的核心环节。
+
+---
+
+# 产品能力
+
+## 1. 跨平台岗位采集
+
+Chrome 插件在用户浏览招聘页面时自动读取当前岗位信息，包括：
+
+- 公司名称
+- 岗位名称
+- 工作地点
+- 薪资信息
+- JD / 职位描述
+- 原始岗位链接
+
+用户可以在插件中确认和修改提取结果，再一键保存到 OfferFlow。
+
+为避免依赖单一网站 DOM 结构，OfferFlow 采用多级降级提取策略：
+
+```text
+平台专用解析器
+      ↓
+通用 CSS Selector
+      ↓
+JSON-LD JobPosting
+      ↓
+Meta / Open Graph
+      ↓
+DOM 内容区域识别
+      ↓
+启发式兜底
+      ↓
+用户确认与修正
 ```
+
+### 平台覆盖
+
+| 类型 | 平台 |
+| --- | --- |
+| 国内招聘平台 | BOSS 直聘、拉勾、牛客 |
+| 企业招聘官网 | 字节跳动、阿里巴巴、腾讯、美团、京东 |
+| 海外 ATS | Greenhouse、Lever、Workday、SmartRecruiters、iCIMS、Ashby |
+
+同时对猎聘、前程无忧、智联招聘、LinkedIn 等平台设置了识别或通用兼容路径。
+
+不同平台的登录状态、动态渲染方式和页面更新都会影响提取结果，因此插件始终保留用户确认和手动修改入口，确保采集结果可控。
+
+### 提取机制
+
+```mermaid
+flowchart TD
+    A[用户打开招聘页面] --> B[识别当前招聘平台]
+    B --> C{存在专用解析器?}
+    C -- 是 --> D[平台专用 DOM / CSS 解析]
+    C -- 否 --> E[通用 CSS Selector]
+    D --> F{字段是否完整?}
+    E --> F
+    F -- 否 --> G[JSON-LD JobPosting]
+    G --> H[Meta / Open Graph]
+    H --> I[JD 内容区域识别]
+    I --> J[DOM 启发式兜底]
+    F -- 是 --> K[插件表单]
+    J --> K
+    K --> L[用户确认]
+    L --> M[保存到 OfferFlow]
+```
+
+---
+
+## 2. JD 快照留存
+
+保存岗位时同步保留 JD 文本。
+
+即使原岗位之后出现下架、关闭、修改或需要重新登录等情况，用户仍然可以在 OfferFlow 中查看保存时的岗位要求，为简历修改、面试准备和后续复盘保留原始依据。
+
+---
+
+## 3. 求职状态管理
+
+OfferFlow 使用七类状态覆盖求职生命周期：
+
+```text
+待投递 → 已投递 → 笔试 → 面试 → Offer
+
+                已拒绝 / 已归档
+```
+
+对应状态值：
+
+| 状态 | 含义 |
+| --- | --- |
+| `saved` | 待投递 |
+| `applied` | 已投递 |
+| `written_test` | 笔试 |
+| `interview` | 面试 |
+| `offer` | Offer |
+| `rejected` | 已拒绝 |
+| `archived` | 已归档 |
+
+Web 工作台支持：
+
+- 状态快速切换
+- 按状态筛选
+- 关键词搜索
+- 批量修改状态
+- 批量删除
+- CSV 导出
+- 岗位数量统计
+- 临期事件优先展示
+
+---
+
+## 4. 笔试与多轮面试管理
+
+每个岗位可以继续记录招聘流程事件。
+
+### 笔试
+
+支持记录：
+
+- 笔试时间
+- 笔试链接
+- 笔试结果
+- 复盘反馈
+- 时间待定的笔试待办
+
+### 面试
+
+支持记录：
+
+- 面试轮次
+- 面试类型
+- 面试时间
+- 会议链接
+- 面试结果
+- 面试反馈
+
+面试类型包括电话、视频、现场和 HR 等场景，可以持续记录一面、二面、三面等多轮流程。
+
+---
+
+## 5. 临期提醒
+
+OfferFlow 自动聚合即将到来的笔试和面试事件：
+
+- 按时间顺序排列
+- 24 小时内事件高亮
+- 岗位卡片优先展示最近事件
+- 显示临期倒计时
+- 已过期事件不再显示错误倒计时
+- 时间待定的笔试继续保留为待办
+
+用户可以直接在求职工作台中看到近期需要处理的招聘事件，减少在招聘 App、聊天记录、邮件和备忘录之间反复查找信息的成本。
+
+---
+
+## 6. 求职数据看板
+
+OfferFlow 在 Web 工作台中提供求职数据看板，统计数据与实际岗位、笔试和面试记录共享同一套数据库，无需额外维护统计表。
+
+当前包括：
+
+- 总岗位数
+- 本周新增岗位数
+- 本月新增岗位数
+- 面试次数
+- 笔试次数
+- Offer 率
+- 当前岗位阶段分布
+- 投递转化漏斗
+- 近 7 天岗位新增趋势
+- 待办事件数量
+
+数据看板帮助用户快速了解当前求职进展和各阶段分布。
+
+---
+
+## 7. 用户认证与数据隔离
+
+OfferFlow 支持：
+
+- 邮箱密码登录
+- Google OAuth
+- GitHub OAuth
+- JWT Session
+
+每条岗位记录通过 `userId` 与用户关联，笔试和面试记录再通过岗位归属完成权限校验，实现用户级数据隔离。
+
+---
+
+# 产品架构
+
+```mermaid
+flowchart LR
+    subgraph Browser[浏览器端]
+        PAGE[招聘网站页面]
+        CONTENT[Content Script<br/>岗位信息提取]
+        POPUP[Extension Popup<br/>结果确认]
+        SW[Background Service Worker<br/>API 通信]
+    end
+
+    subgraph Web[OfferFlow Web]
+        UI[Next.js Web 工作台]
+        API[Next.js Route Handlers]
+        AUTH[用户认证与权限校验]
+        STATS[统计与提醒服务]
+    end
+
+    subgraph Data[数据层]
+        PRISMA[Prisma ORM]
+        DB[(PostgreSQL)]
+    end
+
+    PAGE --> CONTENT
+    CONTENT --> POPUP
+    POPUP --> SW
+    SW --> API
+
+    UI --> API
+    API --> AUTH
+    API --> STATS
+    API --> PRISMA
+    STATS --> PRISMA
+    PRISMA --> DB
+```
+
+浏览器端负责页面识别和信息提取，Web 端负责业务逻辑和数据持久化，两端通过 HTTP API 通信。API 层统一进行用户认证和权限校验，统计与提醒能力复用同一数据层。
+
+---
+
+# 数据模型
+
+```mermaid
+erDiagram
+    USER ||--o{ JOB : owns
+    JOB ||--o{ INTERVIEW : contains
+
+    USER {
+        string id
+        string email
+        string name
+        string password
+        string provider
+        datetime createdAt
+    }
+
+    JOB {
+        string id
+        string title
+        string company
+        string location
+        string salary
+        string url
+        string status
+        string source
+        text jdSnapshot
+        text notes
+        string userId
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    INTERVIEW {
+        string id
+        int round
+        string type
+        datetime scheduledAt
+        string feedback
+        string result
+        string meetingUrl
+        string jobId
+        datetime createdAt
+    }
+```
+
+当前 `Interview` 模型同时承载笔试和面试事件，通过 `type` 字段区分，使两类事件可以共享时间、结果、链接和复盘记录结构。
+
+---
+
+# 技术栈
+
+| 模块 | 技术 |
+| --- | --- |
+| Web 框架 | Next.js 14（App Router） |
+| 前端 | React 18、TypeScript |
+| UI | Tailwind CSS、Lucide Icons |
+| API | Next.js Route Handlers |
+| 数据库 | PostgreSQL |
+| ORM | Prisma 5 |
+| 用户认证 | NextAuth、bcrypt、JWT |
+| 浏览器插件 | Chrome Extension Manifest V3 |
+| 插件运行时 | Content Script、Popup、Service Worker |
+| Web 部署 | Vercel |
+| AI 协同开发 | TRAE WORK |
+
+---
+
+# TRAE WORK 协同开发
+
+OfferFlow 不只是一个在 TRAE 中生成页面的 Demo，而是一个持续迭代的跨端产品。
+
+## 从需求到模块拆解
+
+将“管理求职流程”的宽泛想法拆分为：
+
+- 浏览器岗位采集
+- JD 快照
+- 岗位状态管理
+- 笔试与面试事件
+- 待办提醒
+- 数据看板
+- 用户认证
+- 云端部署
+
+通过模块化拆解，将产品逐步推进到可以在线运行的完整版本。
+
+## 跨文件协同开发
+
+项目同时涉及：
+
+- Chrome Extension
+- Next.js 前端
+- Route Handler API
+- Prisma 数据模型
+- NextAuth 用户认证
+- PostgreSQL 数据库
+- Vercel 部署
+
+一个功能往往需要同时修改多个模块。例如“插件保存岗位”会经过：
+
+```text
+招聘页面
+   ↓
+content.js
+   ↓
+popup.js
+   ↓
+background.js
+   ↓
+HTTP API
+   ↓
+Next.js Route Handler
+   ↓
+Prisma
+   ↓
+PostgreSQL
+```
+
+TRAE WORK 用于理解跨目录依赖、辅助修改关联文件，并降低插件、Web 和数据库之间的联调成本。
+
+## 问题定位与快速迭代
+
+项目实际迭代过程中持续处理：
+
+- 招聘网站 DOM 差异
+- 多平台提取兼容
+- Chrome Extension API 通信
+- 用户认证与权限校验
+- 多用户数据隔离
+- Prisma 数据模型调整
+- Vercel 构建与部署
+- 临期事件排序
+- 笔试与面试流程拆分
+- 24 小时提醒
+- 过期事件展示
+- API 缓存与页面性能
+
+TRAE WORK 帮助缩短从发现问题、定位相关代码到完成修改和验证的路径。
+
+## 人机协同边界
+
+项目的核心产品判断由开发者完成，包括：
+
+- 选择浏览器插件作为低摩擦数据入口
+- 定义求职生命周期和状态体系
+- 确定核心功能优先级
+- 设计岗位信息多级降级提取策略
+- 设计笔试、面试、提醒和统计之间的数据关系
+
+TRAE 主要承担代码理解、方案展开、实现辅助和调试协同。
+
+---
+
+# 本地运行
 
 ## 环境要求
 
-- **Node.js** >= 18.0
-- **PostgreSQL** >= 14.0（或使用 Supabase / Neon 免费云数据库）
-- **npm** >= 9.0（或 pnpm / yarn）
-- **Chrome 浏览器** >= 100（用于安装插件）
+- Node.js 18+
+- npm 9+
+- PostgreSQL 14+
+- Chrome 100+
 
-## 快速开始
-
-### 1. 克隆项目
+## 1. 克隆项目
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/ZIYER-LL/offerflow.git
 cd offerflow
 ```
 
-### 2. 安装依赖
+## 2. 安装依赖
 
 ```bash
 npm install
 ```
 
-### 3. 配置数据库
-
-**方案 A：使用本地 PostgreSQL**
+## 3. 配置环境变量
 
 ```bash
-# 创建数据库
-createdb offerflow
-
-# 复制环境变量模板
 cp .env.example .env
-
-# 编辑 .env 文件，填入你的数据库连接字符串
-# DATABASE_URL="postgresql://your_user:your_password@localhost:5432/offerflow?schema=public"
 ```
 
-**方案 B：使用 Supabase 免费云数据库（推荐新手）**
+编辑 `.env`，至少配置：
 
-1. 访问 [supabase.com](https://supabase.com) 注册并创建项目
-2. 在 Settings > Database 中找到 Connection String
-3. 复制到 `.env` 文件的 `DATABASE_URL`
+```env
+DATABASE_URL="postgresql://username:password@localhost:5432/offerflow"
+AUTH_SECRET="your-auth-secret"
+```
 
-**方案 C：使用 Neon 免费云数据库**
+如需使用 Google OAuth：
 
-1. 访问 [neon.tech](https://neon.tech) 注册并创建项目
-2. 复制提供的 Connection String 到 `.env`
+```env
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+```
 
-### 4. 初始化数据库
+如需使用 GitHub OAuth：
+
+```env
+GITHUB_CLIENT_ID=""
+GITHUB_CLIENT_SECRET=""
+```
+
+## 4. 初始化数据库
 
 ```bash
-# 同步 Prisma schema 到数据库（开发环境推荐）
+npx prisma generate
 npx prisma db push
-
-# 或者使用 migration（生产环境推荐）
-npx prisma migrate dev --name init
 ```
 
-### 5. 启动开发服务器
+## 5. 启动开发服务器
 
 ```bash
 npm run dev
 ```
 
-访问 [http://localhost:3000](http://localhost:3000) 即可使用 Web 求职工作台。
+访问 [http://localhost:3000](http://localhost:3000)。
 
-### 6. 安装浏览器插件
+---
 
-1. 打开 Chrome，地址栏输入 `chrome://extensions/`
-2. 右上角开启 **开发者模式**
-3. 点击 **加载已解压的扩展程序**
-4. 选择项目的 `extension/` 目录
-5. 浏览任意招聘网站，点击工具栏的 OfferFlow 图标即可保存岗位
+# 安装浏览器插件
 
-> 插件默认连接 `http://localhost:3000`，如需修改可在插件弹窗底部的设置区域更改 API 地址。
+1. 打开 Chrome，访问 `chrome://extensions/`。
+2. 开启右上角 **开发者模式**。
+3. 点击 **加载已解压的扩展程序**。
+4. 选择项目中的 `extension/` 目录。
+5. 打开招聘岗位页面。
+6. 点击浏览器工具栏中的 OfferFlow 图标。
+7. 检查自动提取结果并保存岗位。
 
-## 功能说明
+插件支持配置 OfferFlow API 地址，可连接本地或线上环境。
 
-### Web 求职工作台
+---
 
-#### 求职看板（/jobs）
-
-- **状态筛选**：支持按 7 种状态筛选岗位（全部 / 待投递 / 已投递 / 笔试 / 面试 / Offer / 已拒绝 / 已归档）
-- **岗位卡片**：每个卡片展示公司名、岗位名、地点、薪资、来源、状态标签和创建时间
-- **快捷操作**：点击卡片进入详情页，查看完整信息
-
-#### 岗位详情页（/jobs/[id]）
-
-- **状态管理**：一键切换岗位状态（7 个状态按钮）
-- **JD 快照**：可折叠的职位描述展示区，即使原岗位已下架也能查看
-- **备注编辑**：实时编辑并保存备注信息
-- **来源链接**：一键跳转原始招聘页面
-- **删除操作**：二次确认防误删
-
-#### 手动添加岗位（/jobs/new）
-
-- 支持手动填写公司名称、岗位名称、工作地点、薪资、职位描述、来源链接
-- 公司名称和岗位名称为必填项
-
-### Chrome 浏览器插件
-
-#### 岗位信息提取
-
-插件使用多层策略从招聘页面提取岗位信息：
-
-1. **CSS 选择器匹配** - 覆盖主流招聘平台的常见 class name
-2. **JSON-LD 结构化数据** - 从 `<script type="application/ld+json">` 提取 `JobPosting` 类型数据
-3. **Meta 标签 fallback** - 从 `document.title`、`meta[description]`、`og:` 标签提取
-4. **DOM 内容启发式** - 查找 `.job-description`、`.detail-content`、`main` 等大文本块
-
-#### 插件设置
-
-- 可自定义 API 地址（默认 `http://localhost:3000`）
-- 设置保存在 `chrome.storage.local`，安装时自动初始化
-
-## API 接口
-
-所有接口返回统一 JSON 格式：
-
-```json
-{ "success": true, "data": { ... } }
-// 或
-{ "success": false, "error": "错误信息" }
-```
-
-### GET /api/jobs
-
-获取岗位列表。
-
-**查询参数：**
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| status | string | 按状态筛选，不传则返回全部 |
-| sortBy | string | 排序字段，支持 status / createdAt / updatedAt / company / title，默认 createdAt |
-| sortOrder | string | asc 或 desc，默认 desc |
-
-### POST /api/jobs
-
-创建新岗位。
-
-**请求体：**
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| title | string | 是 | 岗位名称 |
-| company | string | 是 | 公司名称 |
-| location | string | 否 | 工作地点 |
-| salary | string | 否 | 薪资范围 |
-| url | string | 否 | 来源链接 |
-| source | string | 否 | 来源平台（如 BOSS直聘、拉勾等） |
-| jdSnapshot | string | 否 | 职位描述快照 |
-| notes | string | 否 | 用户备注 |
-| status | string | 否 | 初始状态，默认 saved |
-
-### GET /api/jobs/:id
-
-获取单个岗位详情。
-
-### PUT /api/jobs/:id
-
-更新岗位信息。
-
-**请求体（支持部分更新）：**
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| status | string | 新状态 |
-| notes | string | 备注 |
-| location | string | 工作地点 |
-| salary | string | 薪资 |
-
-### DELETE /api/jobs/:id
-
-删除岗位。
-
-## 数据库模型
-
-```prisma
-model Job {
-  id          String   @id @default(cuid())
-  title       String                       // 岗位名称
-  company     String                       // 公司名称
-  location    String?                       // 工作地点
-  salary      String?                       // 薪资范围
-  url         String?                       // 来源链接
-  status      String   @default("saved")    // 状态
-  source      String?                       // 来源平台
-  jdSnapshot  String?  @db.Text             // JD 快照
-  notes       String?  @db.Text             // 用户备注
-  createdAt   DateTime @default(now())       // 创建时间
-  updatedAt   DateTime @updatedAt            // 更新时间
-}
-```
-
-**状态枚举值：**
-
-| 状态值 | 中文标签 | 说明 |
-|--------|---------|------|
-| saved | 待投递 | 已保存但未投递 |
-| applied | 已投递 | 已提交简历/申请 |
-| written_test | 笔试 | 收到笔试通知 |
-| interview | 面试 | 收到面试通知 |
-| offer | Offer | 收到录用通知 |
-| rejected | 已拒绝 | 未通过 |
-| archived | 已归档 | 手动归档 |
-
-## 常用开发命令
+# 常用命令
 
 ```bash
 # 启动开发服务器
@@ -283,86 +529,57 @@ npm run build
 # 启动生产服务器
 npm start
 
-# 数据库相关
-npx prisma db push          # 同步 schema 到数据库（开发用）
-npx prisma migrate dev      # 创建并应用 migration
-npx prisma migrate deploy   # 应用 migration（生产用）
-npx prisma generate         # 生成 Prisma Client
-npx prisma studio           # 打开数据库可视化管理界面
+# 生成 Prisma Client
+npm run db:generate
 
-# 查看数据库
-npx prisma studio
+# 同步数据库结构
+npm run db:push
+
+# 创建数据库 Migration
+npm run db:migrate
+
+# 打开 Prisma Studio
+npm run db:studio
 ```
 
-## 部署指南
+---
 
-### Vercel 部署（Web 应用）
+# 项目特点
 
-1. 将项目推送到 GitHub
-2. 登录 [vercel.com](https://vercel.com)
-3. 导入 GitHub 仓库
-4. 在 Vercel 项目设置中添加环境变量 `DATABASE_URL`
-5. 部署
+OfferFlow 的核心不是单独实现某一个求职功能，而是把原本分散的求职动作连接起来：
 
-> Vercel 免费计划支持自定义域名、HTTPS、自动 CI/CD，100 用户量级完全够用。
+```text
+招聘网站
+   ↓
+岗位自动采集
+   ↓
+JD 快照沉淀
+   ↓
+统一岗位管理
+   ↓
+投递状态跟进
+   ↓
+笔试 / 多轮面试管理
+   ↓
+临期提醒
+   ↓
+面试反馈记录
+   ↓
+求职数据分析
+```
 
-### Supabase 部署（数据库）
+浏览器插件负责降低信息采集成本，Web 工作台负责管理完整求职流程，PostgreSQL 持续沉淀用户数据，数据看板再将求职过程反馈给用户，最终形成一个可以实际使用的个人求职工作流系统。
 
-1. 在 [supabase.com](https://supabase.com) 创建项目
-2. 在 SQL Editor 中运行 `npx prisma migrate deploy` 生成的 SQL
-3. 或使用 Supabase 的 Connection String + `npx prisma db push`
+---
 
-## MVP 路线图
+# TRAE AI 创造力大赛
 
-### 已完成（v0.1.0 MVP）
+OfferFlow 参加 **TRAE AI 创造力大赛**，从 3 万余名参赛者中进入全国复赛 **350 强**，约前 **1.2%**。
 
-- [x] 岗位一键保存（浏览器插件）
-- [x] 岗位信息自动提取（多层 fallback 策略）
-- [x] JD 快照保存
-- [x] 投递状态管理（7 种状态）
-- [x] Web 求职看板（筛选 + 列表）
-- [x] 岗位详情页（状态切换 + JD 折叠 + 备注编辑）
-- [x] 手动添加岗位
-- [x] RESTful API
+项目从真实的个人求职痛点出发，通过 TRAE WORK 完成需求拆解、产品设计、浏览器插件、Web 全栈系统、数据库、认证、部署与持续调试，将最初的产品想法落地为可以实际运行的完整应用。
 
-### 计划中（v0.2.0）
+---
 
-- [ ] 用户认证与多用户隔离
-- [ ] 岗位准备建议（基于 JD 关键词匹配）
-- [ ] 笔试/面试日程提醒
-- [ ] 求职复盘记录（结构化）
+# License
 
-### 远期规划（v1.0+）
-
-- [ ] 移动端 App + 推送提醒
-- [ ] AI 深度分析（基于面试复盘提炼薄弱环节）
-- [ ] 求职数据看板（投递转化率、通过率统计）
-- [ ] 多平台自动导入（邮箱、就业系统）
-
-## 常见问题
-
-### Q: 插件无法提取某些招聘网站的岗位信息怎么办？
-
-A: 插件使用通用提取策略，无法适配所有招聘网站。如果自动提取失败，可以手动填写信息。后续版本会逐步增加对主流平台（BOSS直聘、拉勾、牛客等）的专门适配。
-
-### Q: 插件保存岗位时提示"无法连接到 API"？
-
-A: 请检查：
-1. Web 服务是否已启动（`npm run dev`）
-2. 插件设置中的 API 地址是否正确（默认 `http://localhost:3000`）
-3. 如果使用远程部署，确保 API 地址为 `https://` 且后端已配置 CORS
-
-### Q: 数据库连接失败？
-
-A: 请检查：
-1. `.env` 文件中的 `DATABASE_URL` 是否正确
-2. PostgreSQL 服务是否已启动
-3. 如果使用云数据库，确认连接字符串中的密码和主机地址
-
-### Q: 如何重置数据库？
-
-A: 运行 `npx prisma migrate reset` 将清空所有数据并重新创建表结构。
-
-## License
-
-MIT
+MIT License
