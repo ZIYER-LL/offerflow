@@ -20,23 +20,36 @@ model User {
 }
 
 model Job {
-  id          String       @id @default(cuid())
+  id          String        @id @default(cuid())
   title       String
   company     String
   location    String?
   salary      String?
   url         String?
-  status      String       @default("saved")
+  status      String        @default("saved")
   source      String?
   jdSnapshot  String?
   notes       String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   userId      String
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   interviews  Interview[]
+  analysis    JobAnalysis?
 
   @@index([userId])
+}
+
+model JobAnalysis {
+  id          String   @id @default(cuid())
+  jobId       String   @unique
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  category    String?
+  summary     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([jobId])
 }
 
 model Interview {

@@ -86,3 +86,26 @@ export const STATUS_COLORS: Record<JobStatus, string> = {
   rejected: 'bg-red-100 text-red-700',
   archived: 'bg-gray-50 text-gray-500',
 };
+
+// ============ AI 岗位分析 ============
+
+export interface AnalysisItem {
+  content: string;
+  evidence: string;
+}
+
+export interface JobAnalysisData {
+  responsibilities: AnalysisItem[];
+  requirements: AnalysisItem[];
+  bonusQualifications: AnalysisItem[];
+  educationRequirement: string;
+}
+
+export interface JobAnalysis {
+  id: string;
+  jobId: string;
+  category: string | null;
+  summary: JobAnalysisData | null;
+  createdAt: string;
+  updatedAt: string;
+}

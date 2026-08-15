@@ -1,11 +1,12 @@
-import NextAuth from 'next-auth';
+import { getServerSession, type Session } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import GitHub from 'next-auth/providers/github';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-export const authOptions = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const authOptions: any = {
   secret: process.env.AUTH_SECRET || 'offerflow-dev-secret-do-not-use-in-production',
   trustHost: true,
   providers: [
@@ -109,5 +110,7 @@ export const authOptions = {
   },
 };
 
-const handler = NextAuth(authOptions);
-export const { handlers, signIn, signOut, auth } = handler;
+// 服务端获取 session 的辅助函数
+export async function auth(): Promise<Session | null> {
+  return getServerSession(authOptions);
+}

@@ -28,6 +28,10 @@ import {
   Bell,
   LogOut,
   User,
+  Puzzle,
+  TrendingUp,
+  BarChart3,
+  Sparkles,
 } from 'lucide-react';
 import { Job, JobStatus, STATUS_LABELS, STATUS_COLORS } from '@/types/job';
 import { cn } from '@/lib/utils';
@@ -383,6 +387,14 @@ export default function JobsPage() {
               <h1 className="text-xl font-bold text-slate-900">我的岗位</h1>
             </div>
             <div className="flex items-center gap-2">
+              <Link
+                href="/analytics"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                title="数据看板"
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span className="hidden sm:inline">数据看板</span>
+              </Link>
               <button
                 onClick={exportCSV}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
@@ -726,38 +738,95 @@ export default function JobsPage() {
             </button>
           </div>
         ) : jobs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-              <Inbox className="w-8 h-8 text-slate-400" />
-            </div>
-            <h3 className="text-lg font-medium text-slate-700 mb-2">
-              {activeStatus === 'all' && !searchKeyword
-                ? '还没有添加任何岗位'
-                : '没有符合条件的岗位'}
-            </h3>
-            <p className="text-sm text-slate-500 mb-6">
-              {activeStatus === 'all' && !searchKeyword
-                ? '点击"添加岗位"开始追踪你的求职进度'
-                : '尝试切换筛选条件或清除搜索'}
-            </p>
+          <div className="flex flex-col items-center justify-center py-12">
             {activeStatus === 'all' && !searchKeyword ? (
-              <Link
-                href="/jobs/new"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white text-sm font-medium rounded-lg hover:bg-primary-600 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                添加第一个岗位
-              </Link>
+              <>
+                {/* 新用户引导 */}
+                <div className="w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-primary-200">
+                  <Briefcase className="w-10 h-10 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">欢迎使用 OfferFlow</h2>
+                <p className="text-sm text-slate-500 mb-8 text-center max-w-md">
+                  高效管理求职流程，追踪每一个岗位进度。选择以下方式开始你的求职之旅
+                </p>
+
+                <div className="grid sm:grid-cols-2 gap-4 w-full max-w-2xl">
+                  {/* Chrome 插件引导 */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-primary-300 hover:shadow-md transition-all group">
+                    <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <Puzzle className="w-6 h-6 text-amber-500" />
+                    </div>
+                    <h3 className="text-base font-semibold text-slate-900 mb-1">安装 Chrome 插件</h3>
+                    <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                      浏览招聘网站时一键保存岗位，自动填充公司、职位、薪资等字段
+                    </p>
+                    <a
+                      href="https://offerflow-six.vercel.app/offerflow-extension.zip"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700"
+                    >
+                      <Download className="w-4 h-4" />
+                      下载插件
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
+                  {/* 手动添加引导 */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-primary-300 hover:shadow-md transition-all group">
+                    <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <Plus className="w-6 h-6 text-primary-500" />
+                    </div>
+                    <h3 className="text-base font-semibold text-slate-900 mb-1">手动添加岗位</h3>
+                    <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                      直接输入岗位信息，适合从其他渠道获取的岗位
+                    </p>
+                    <Link
+                      href="/jobs/new"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700"
+                    >
+                      <Plus className="w-4 h-4" />
+                      添加第一个岗位
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </div>
+
+                {/* 功能亮点 */}
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400">
+                  <span className="flex items-center gap-1.5">
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    数据看板
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Bell className="w-3.5 h-3.5" />
+                    笔面试提醒
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    转化分析
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Download className="w-3.5 h-3.5" />
+                    CSV 导出
+                  </span>
+                </div>
+              </>
             ) : (
-              <button
-                onClick={() => {
-                  setActiveStatus('all');
-                  clearSearch();
-                }}
-                className="px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
-              >
-                清除筛选
-              </button>
+              <>
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                  <Inbox className="w-8 h-8 text-slate-400" />
+                </div>
+                <h3 className="text-lg font-medium text-slate-700 mb-2">没有符合条件的岗位</h3>
+                <p className="text-sm text-slate-500 mb-6">尝试切换筛选条件或清除搜索</p>
+                <button
+                  onClick={() => {
+                    setActiveStatus('all');
+                    clearSearch();
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
+                >
+                  清除筛选
+                </button>
+              </>
             )}
           </div>
         ) : (

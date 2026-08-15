@@ -8,13 +8,16 @@ import {
   ArrowLeft, MapPin, DollarSign, Globe, Clock, ChevronDown, ChevronUp,
   Loader2, Trash2, Save, ExternalLink, Briefcase, Plus, Calendar,
   MessageSquare, Pencil, X, Video, AlertTriangle, LogOut, User, FileText,
+  Sparkles,
 } from 'lucide-react';
 import {
   Job, JobStatus, STATUS_LABELS, STATUS_COLORS,
   Interview, InterviewType, InterviewResult,
   INTERVIEW_TYPE_LABELS, INTERVIEW_RESULT_LABELS, INTERVIEW_RESULT_COLORS,
+  JobAnalysis,
 } from '@/types/job';
 import { cn } from '@/lib/utils';
+import AISummaryCard from './components/AISummaryCard';
 
 const STATUS_OPTIONS: { key: JobStatus; label: string }[] = [
   { key: 'saved', label: '待投递' },
@@ -38,6 +41,16 @@ const INTERVIEW_RESULT_OPTIONS: { key: InterviewResult; label: string }[] = [
   { key: 'passed', label: '通过' },
   { key: 'failed', label: '未通过' },
   { key: 'no_show', label: '未出席' },
+];
+
+type TabKey = 'overview' | 'application' | 'ai-prep' | 'interviews' | 'review';
+
+const TABS: { key: TabKey; label: string; icon: typeof Briefcase }[] = [
+  { key: 'overview', label: '概览', icon: Briefcase },
+  { key: 'application', label: '投递', icon: FileText },
+  { key: 'ai-prep', label: 'AI准备', icon: Sparkles },
+  { key: 'interviews', label: '笔面试', icon: Video },
+  { key: 'review', label: '复盘', icon: MessageSquare },
 ];
 
 function formatDate(dateStr: string): string {
@@ -92,6 +105,12 @@ export default function JobDetailPage() {
   const [notes, setNotes] = useState('');
   const [notesChanged, setNotesChanged] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+
+  // Tab 导航
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+
+  // AI 岗位分析
+  const [analysis, setAnalysis] = useState<JobAnalysis | null>(null);
 
   // 面试记录
   const [interviews, setInterviews] = useState<Interview[]>([]);
@@ -173,8 +192,21 @@ export default function JobDetailPage() {
     }
   }, [id]);
 
+  const fetchAnalysis = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/jobs/${id}/analysis`);
+      const data = await res.json();
+      if (data.success) {
+        setAnalysis(data.data);
+      }
+    } catch (err) {
+      console.error('获取岗位分析失败:', err);
+    }
+  }, [id]);
+
   useEffect(() => { fetchJob(); }, [fetchJob]);
   useEffect(() => { if (id) fetchInterviews(); }, [id, fetchInterviews]);
+  useEffect(() => { if (id) fetchAnalysis(); }, [id, fetchAnalysis]);
 
   const resetInterviewForm = useCallback(() => {
     const nonTestCount = interviews.filter((i) => i.type !== 'written_test').length;
@@ -502,243 +534,322 @@ export default function JobDetailPage() {
           </div>
         </div>
 
-        {/* 状态切换 */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4">
-          <h2 className="text-sm font-semibold text-slate-900 mb-3">状态管理</h2>
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-            {STATUS_OPTIONS.map((opt) => (
-              <button key={opt.key} onClick={() => handleStatusChange(opt.key)} disabled={saving}
-                className={cn('px-2 py-2 text-xs font-medium rounded-lg transition-all text-center',
-                  job.status === opt.key
-                    ? cn(STATUS_COLORS[opt.key], 'ring-2 ring-offset-1 ring-slate-300')
-                    : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200')}
-              >{opt.label}</button>
-            ))}
-          </div>
+        {/* ============ Tab 导航 ============ */}
+        <div className="flex gap-1 border-b border-slate-200 mb-4 overflow-x-auto">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap',
+                  activeTab === tab.key
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                )}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* ============ 笔试记录板块 ============ */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-slate-400" /> 笔试记录
-            </h2>
-            <button onClick={() => { resetTestForm(); setShowTestForm(true); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
-              <Plus className="w-3.5 h-3.5" /> 添加笔试
-            </button>
-          </div>
+        {/* ============ 概览 Tab ============ */}
+        {activeTab === 'overview' && (
+          <>
+            {/* AI 岗位摘要卡 */}
+            <AISummaryCard
+              jobId={id}
+              analysis={analysis}
+              jdSnapshot={job.jdSnapshot}
+              onUpdate={fetchAnalysis}
+            />
 
-          {loadingTests ? (
-            <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 text-primary-500 animate-spin" /></div>
-          ) : tests.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-sm text-slate-400">暂无笔试记录</p>
-              <button onClick={() => { resetTestForm(); setShowTestForm(true); }}
-                className="mt-2 text-xs text-amber-600 hover:text-amber-700">添加第一条笔试记录</button>
+            {/* 状态切换 */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4">
+              <h2 className="text-sm font-semibold text-slate-900 mb-3">状态管理</h2>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                {STATUS_OPTIONS.map((opt) => (
+                  <button key={opt.key} onClick={() => handleStatusChange(opt.key)} disabled={saving}
+                    className={cn('px-2 py-2 text-xs font-medium rounded-lg transition-all text-center',
+                      job.status === opt.key
+                        ? cn(STATUS_COLORS[opt.key], 'ring-2 ring-offset-1 ring-slate-300')
+                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200')}
+                  >{opt.label}</button>
+                ))}
+              </div>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {sortedTests.map((test) => renderEventCard(test, true,
-                () => startEditTest(test), () => handleDeleteTest(test.id)))}
-            </div>
-          )}
 
-          {/* 笔试表单 */}
-          {showTestForm && (
-            <div className="mt-4 border border-amber-200 rounded-lg p-4 bg-amber-50/30">
-              <h3 className="text-sm font-semibold text-slate-900 mb-3">
-                {editingTest ? '编辑笔试' : '添加笔试'}
-              </h3>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">笔试时间</label>
-                    <input type="datetime-local" value={testForm.scheduledAt}
-                      onChange={(e) => setTestForm((p) => ({ ...p, scheduledAt: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">结果</label>
-                    <div className="flex gap-2 flex-wrap">
-                      {INTERVIEW_RESULT_OPTIONS.map((opt) => (
-                        <button key={opt.key}
-                          onClick={() => setTestForm((p) => ({ ...p, result: opt.key }))}
-                          className={cn('px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border',
-                            testForm.result === opt.key
-                              ? cn(INTERVIEW_RESULT_COLORS[opt.key], 'border-transparent')
-                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50')}
-                        >{opt.label}</button>
-                      ))}
+            {/* JD 快照 */}
+            {job.jdSnapshot && (
+              <div className="bg-white rounded-xl border border-slate-200 mb-4 overflow-hidden">
+                <button onClick={() => setShowJd(!showJd)}
+                  className="w-full flex items-center justify-between p-4 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition-colors">
+                  <span className="flex items-center gap-2"><Briefcase className="w-4 h-4 text-slate-400" /> 职位描述 (JD)</span>
+                  {showJd ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </button>
+                {showJd && (
+                  <div className="px-4 pb-4">
+                    <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
+                      {job.jdSnapshot}
                     </div>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">笔试链接</label>
-                  <input type="url" value={testForm.meetingUrl}
-                    onChange={(e) => setTestForm((p) => ({ ...p, meetingUrl: e.target.value }))}
-                    placeholder="粘贴笔试链接（牛客、赛码、HackerRank 等）"
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">备注 / 题目内容</label>
-                  <textarea value={testForm.feedback}
-                    onChange={(e) => setTestForm((p) => ({ ...p, feedback: e.target.value }))}
-                    placeholder="记录笔试题目、注意事项..." rows={3}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400" />
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <button onClick={handleSaveTest}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-500 rounded-lg hover:bg-primary-600 transition-colors">
-                    <Save className="w-3.5 h-3.5" /> {editingTest ? '保存修改' : '添加笔试'}
-                  </button>
-                  <button onClick={() => { setShowTestForm(false); resetTestForm(); }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                    <X className="w-3.5 h-3.5" /> 取消
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ============ 面试记录板块 ============ */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-              <Video className="w-4 h-4 text-slate-400" /> 面试记录
-            </h2>
-            <button onClick={() => { resetInterviewForm(); setShowInterviewForm(true); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors">
-              <Plus className="w-3.5 h-3.5" /> 添加面试
-            </button>
-          </div>
-
-          {loadingInterviews ? (
-            <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 text-primary-500 animate-spin" /></div>
-          ) : sortedInterviews.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-sm text-slate-400">暂无面试记录</p>
-              <button onClick={() => { resetInterviewForm(); setShowInterviewForm(true); }}
-                className="mt-2 text-xs text-primary-600 hover:text-primary-700">添加第一条面试记录</button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sortedInterviews.map((interview) => renderEventCard(interview, false,
-                () => startEditInterview(interview), () => handleDeleteInterview(interview.id)))}
-            </div>
-          )}
-
-          {/* 面试表单 */}
-          {showInterviewForm && (
-            <div className="mt-4 border border-primary-200 rounded-lg p-4 bg-primary-50/50">
-              <h3 className="text-sm font-semibold text-slate-900 mb-3">
-                {editingInterview ? '编辑面试' : '添加面试'}
-              </h3>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">轮次</label>
-                    <input type="number" min={1} value={interviewForm.round}
-                      onChange={(e) => setInterviewForm((p) => ({ ...p, round: parseInt(e.target.value) || 1 }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">类型</label>
-                    <select value={interviewForm.type}
-                      onChange={(e) => setInterviewForm((p) => ({ ...p, type: e.target.value as InterviewType }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white">
-                      {INTERVIEW_TYPE_OPTIONS.map((opt) => (
-                        <option key={opt.key} value={opt.key}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">时间</label>
-                  <input type="datetime-local" value={interviewForm.scheduledAt}
-                    onChange={(e) => setInterviewForm((p) => ({ ...p, scheduledAt: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">面邀链接</label>
-                  <input type="url" value={interviewForm.meetingUrl}
-                    onChange={(e) => setInterviewForm((p) => ({ ...p, meetingUrl: e.target.value }))}
-                    placeholder="粘贴会议链接（腾讯会议、Zoom、飞书等）"
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">结果</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {INTERVIEW_RESULT_OPTIONS.map((opt) => (
-                      <button key={opt.key}
-                        onClick={() => setInterviewForm((p) => ({ ...p, result: opt.key }))}
-                        className={cn('px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border',
-                          interviewForm.result === opt.key
-                            ? cn(INTERVIEW_RESULT_COLORS[opt.key], 'border-transparent')
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50')}
-                      >{opt.label}</button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">反馈/备注</label>
-                  <textarea value={interviewForm.feedback}
-                    onChange={(e) => setInterviewForm((p) => ({ ...p, feedback: e.target.value }))}
-                    placeholder="记录反馈、问题、感受..." rows={3}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400" />
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <button onClick={handleSaveInterview}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-500 rounded-lg hover:bg-primary-600 transition-colors">
-                    <Save className="w-3.5 h-3.5" /> {editingInterview ? '保存修改' : '添加面试'}
-                  </button>
-                  <button onClick={() => { setShowInterviewForm(false); resetInterviewForm(); }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                    <X className="w-3.5 h-3.5" /> 取消
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* JD 快照 */}
-        {job.jdSnapshot && (
-          <div className="bg-white rounded-xl border border-slate-200 mb-4 overflow-hidden">
-            <button onClick={() => setShowJd(!showJd)}
-              className="w-full flex items-center justify-between p-4 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition-colors">
-              <span className="flex items-center gap-2"><Briefcase className="w-4 h-4 text-slate-400" /> 职位描述 (JD)</span>
-              {showJd ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-            </button>
-            {showJd && (
-              <div className="px-4 pb-4">
-                <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
-                  {job.jdSnapshot}
-                </div>
+                )}
               </div>
             )}
+
+            {/* 备注编辑 */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-slate-900">备注</h2>
+                {notesChanged && (
+                  <button onClick={handleSaveNotes} disabled={saving}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-primary-500 rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50">
+                    <Save className="w-3 h-3" /> 保存
+                  </button>
+                )}
+              </div>
+              <textarea value={notes} onChange={(e) => { setNotes(e.target.value); setNotesChanged(true); }}
+                placeholder="添加你的备注..." rows={4}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400" />
+            </div>
+          </>
+        )}
+
+        {/* ============ 投递 Tab ============ */}
+        {activeTab === 'application' && (
+          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+            <div className="w-12 h-12 mx-auto bg-slate-50 rounded-xl flex items-center justify-center mb-4">
+              <FileText className="w-6 h-6 text-slate-300" />
+            </div>
+            <h3 className="text-sm font-semibold text-slate-700 mb-2">投递管理</h3>
+            <p className="text-sm text-slate-400 max-w-sm mx-auto">
+              即将上线：网申追踪、简历关联、投递时间线
+            </p>
           </div>
         )}
 
-        {/* 备注编辑 */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-900">备注</h2>
-            {notesChanged && (
-              <button onClick={handleSaveNotes} disabled={saving}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-primary-500 rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50">
-                <Save className="w-3 h-3" /> 保存
-              </button>
-            )}
+        {/* ============ AI 准备 Tab ============ */}
+        {activeTab === 'ai-prep' && (
+          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+            <div className="w-12 h-12 mx-auto bg-purple-50 rounded-xl flex items-center justify-center mb-4">
+              <Sparkles className="w-6 h-6 text-purple-300" />
+            </div>
+            <h3 className="text-sm font-semibold text-slate-700 mb-2">AI 准备</h3>
+            <p className="text-sm text-slate-400 max-w-sm mx-auto">
+              即将上线：人岗匹配、准备任务生成、面试题预测
+            </p>
           </div>
-          <textarea value={notes} onChange={(e) => { setNotes(e.target.value); setNotesChanged(true); }}
-            placeholder="添加你的备注..." rows={4}
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400" />
-        </div>
+        )}
+
+        {/* ============ 笔面试 Tab ============ */}
+        {activeTab === 'interviews' && (
+          <>
+            {/* 笔试记录板块 */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-slate-400" /> 笔试记录
+                </h2>
+                <button onClick={() => { resetTestForm(); setShowTestForm(true); }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> 添加笔试
+                </button>
+              </div>
+
+              {loadingTests ? (
+                <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 text-primary-500 animate-spin" /></div>
+              ) : tests.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-slate-400">暂无笔试记录</p>
+                  <button onClick={() => { resetTestForm(); setShowTestForm(true); }}
+                    className="mt-2 text-xs text-amber-600 hover:text-amber-700">添加第一条笔试记录</button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sortedTests.map((test) => renderEventCard(test, true,
+                    () => startEditTest(test), () => handleDeleteTest(test.id)))}
+                </div>
+              )}
+
+              {/* 笔试表单 */}
+              {showTestForm && (
+                <div className="mt-4 border border-amber-200 rounded-lg p-4 bg-amber-50/30">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-3">
+                    {editingTest ? '编辑笔试' : '添加笔试'}
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">笔试时间</label>
+                        <input type="datetime-local" value={testForm.scheduledAt}
+                          onChange={(e) => setTestForm((p) => ({ ...p, scheduledAt: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">结果</label>
+                        <div className="flex gap-2 flex-wrap">
+                          {INTERVIEW_RESULT_OPTIONS.map((opt) => (
+                            <button key={opt.key}
+                              onClick={() => setTestForm((p) => ({ ...p, result: opt.key }))}
+                              className={cn('px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border',
+                                testForm.result === opt.key
+                                  ? cn(INTERVIEW_RESULT_COLORS[opt.key], 'border-transparent')
+                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50')}
+                            >{opt.label}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">笔试链接</label>
+                      <input type="url" value={testForm.meetingUrl}
+                        onChange={(e) => setTestForm((p) => ({ ...p, meetingUrl: e.target.value }))}
+                        placeholder="粘贴笔试链接（牛客、赛码、HackerRank 等）"
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">备注 / 题目内容</label>
+                      <textarea value={testForm.feedback}
+                        onChange={(e) => setTestForm((p) => ({ ...p, feedback: e.target.value }))}
+                        placeholder="记录笔试题目、注意事项..." rows={3}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400" />
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button onClick={handleSaveTest}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-500 rounded-lg hover:bg-primary-600 transition-colors">
+                        <Save className="w-3.5 h-3.5" /> {editingTest ? '保存修改' : '添加笔试'}
+                      </button>
+                      <button onClick={() => { setShowTestForm(false); resetTestForm(); }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                        <X className="w-3.5 h-3.5" /> 取消
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 面试记录板块 */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <Video className="w-4 h-4 text-slate-400" /> 面试记录
+                </h2>
+                <button onClick={() => { resetInterviewForm(); setShowInterviewForm(true); }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> 添加面试
+                </button>
+              </div>
+
+              {loadingInterviews ? (
+                <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 text-primary-500 animate-spin" /></div>
+              ) : sortedInterviews.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-slate-400">暂无面试记录</p>
+                  <button onClick={() => { resetInterviewForm(); setShowInterviewForm(true); }}
+                    className="mt-2 text-xs text-primary-600 hover:text-primary-700">添加第一条面试记录</button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sortedInterviews.map((interview) => renderEventCard(interview, false,
+                    () => startEditInterview(interview), () => handleDeleteInterview(interview.id)))}
+                </div>
+              )}
+
+              {/* 面试表单 */}
+              {showInterviewForm && (
+                <div className="mt-4 border border-primary-200 rounded-lg p-4 bg-primary-50/50">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-3">
+                    {editingInterview ? '编辑面试' : '添加面试'}
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">轮次</label>
+                        <input type="number" min={1} value={interviewForm.round}
+                          onChange={(e) => setInterviewForm((p) => ({ ...p, round: parseInt(e.target.value) || 1 }))}
+                          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">类型</label>
+                        <select value={interviewForm.type}
+                          onChange={(e) => setInterviewForm((p) => ({ ...p, type: e.target.value as InterviewType }))}
+                          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white">
+                          {INTERVIEW_TYPE_OPTIONS.map((opt) => (
+                            <option key={opt.key} value={opt.key}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">时间</label>
+                      <input type="datetime-local" value={interviewForm.scheduledAt}
+                        onChange={(e) => setInterviewForm((p) => ({ ...p, scheduledAt: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">面邀链接</label>
+                      <input type="url" value={interviewForm.meetingUrl}
+                        onChange={(e) => setInterviewForm((p) => ({ ...p, meetingUrl: e.target.value }))}
+                        placeholder="粘贴会议链接（腾讯会议、Zoom、飞书等）"
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">结果</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {INTERVIEW_RESULT_OPTIONS.map((opt) => (
+                          <button key={opt.key}
+                            onClick={() => setInterviewForm((p) => ({ ...p, result: opt.key }))}
+                            className={cn('px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border',
+                              interviewForm.result === opt.key
+                                ? cn(INTERVIEW_RESULT_COLORS[opt.key], 'border-transparent')
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50')}
+                          >{opt.label}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">反馈/备注</label>
+                      <textarea value={interviewForm.feedback}
+                        onChange={(e) => setInterviewForm((p) => ({ ...p, feedback: e.target.value }))}
+                        placeholder="记录反馈、问题、感受..." rows={3}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400" />
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button onClick={handleSaveInterview}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-500 rounded-lg hover:bg-primary-600 transition-colors">
+                        <Save className="w-3.5 h-3.5" /> {editingInterview ? '保存修改' : '添加面试'}
+                      </button>
+                      <button onClick={() => { setShowInterviewForm(false); resetInterviewForm(); }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                        <X className="w-3.5 h-3.5" /> 取消
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ============ 复盘 Tab ============ */}
+        {activeTab === 'review' && (
+          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+            <div className="w-12 h-12 mx-auto bg-slate-50 rounded-xl flex items-center justify-center mb-4">
+              <MessageSquare className="w-6 h-6 text-slate-300" />
+            </div>
+            <h3 className="text-sm font-semibold text-slate-700 mb-2">复盘</h3>
+            <p className="text-sm text-slate-400 max-w-sm mx-auto">
+              即将上线：面试反馈结构化、能力画像更新、跨岗位总结
+            </p>
+          </div>
+        )}
 
         {/* 危险操作 */}
-        <div className="bg-white rounded-xl border border-red-200 p-6">
+        <div className="bg-white rounded-xl border border-red-200 p-6 mt-4">
           <h2 className="text-sm font-semibold text-red-600 mb-2">危险操作</h2>
           <p className="text-xs text-slate-500 mb-3">删除后无法恢复，请谨慎操作。</p>
           <button onClick={handleDelete} disabled={deleting}
