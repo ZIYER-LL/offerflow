@@ -3,7 +3,7 @@ import { jwtVerify } from 'jose';
 
 const SECRET = process.env.AUTH_SECRET || 'offerflow-dev-secret-do-not-use-in-production';
 
-const publicPaths = ['/', '/login', '/register'];
+const publicPaths = ['/', '/login', '/register', '/demo', '/demo-analytics'];
 const apiAuthPaths = ['/api/auth'];
 
 export default async function middleware(request: NextRequest) {

@@ -29,7 +29,26 @@ export async function GET(
       where: { jobId: params.id },
     });
 
-    return NextResponse.json({ success: true, data: analysis || null });
+    // 兼容 SQLite（String 存储）和 PostgreSQL（Json 存储）
+    let serializedAnalysis = null;
+    if (analysis) {
+      let parsedSummary = analysis.summary;
+      if (typeof analysis.summary === 'string') {
+        try {
+          parsedSummary = JSON.parse(analysis.summary);
+        } catch {
+          parsedSummary = null;
+        }
+      }
+      serializedAnalysis = {
+        ...analysis,
+        summary: parsedSummary,
+        createdAt: analysis.createdAt.toISOString(),
+        updatedAt: analysis.updatedAt.toISOString(),
+      };
+    }
+
+    return NextResponse.json({ success: true, data: serializedAnalysis });
   } catch (error) {
     console.error('获取岗位分析失败:', error);
     return NextResponse.json(
@@ -63,20 +82,41 @@ export async function POST(
     const body = await req.json();
     const { category, summary } = body;
 
+    // 兼容 SQLite（String 存储）和 PostgreSQL（Json 存储）
+    const summaryData = summary ? JSON.stringify(summary) : null;
+
     const analysis = await prisma.jobAnalysis.upsert({
       where: { jobId: params.id },
       create: {
         jobId: params.id,
         category: category || null,
-        summary: summary || null,
+        summary: summaryData,
       },
       update: {
         category: category ?? undefined,
-        summary: summary ?? undefined,
+        summary: summary !== undefined ? summaryData : undefined,
       },
     });
 
-    return NextResponse.json({ success: true, data: analysis });
+    // 返回时反序列化
+    let parsedSummary = analysis.summary;
+    if (typeof analysis.summary === 'string') {
+      try {
+        parsedSummary = JSON.parse(analysis.summary);
+      } catch {
+        parsedSummary = null;
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...analysis,
+        summary: parsedSummary,
+        createdAt: analysis.createdAt.toISOString(),
+        updatedAt: analysis.updatedAt.toISOString(),
+      },
+    });
   } catch (error) {
     console.error('保存岗位分析失败:', error);
     return NextResponse.json(

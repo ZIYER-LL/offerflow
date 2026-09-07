@@ -24,18 +24,17 @@ export default function LoginPage() {
       const res = await signIn('credentials', {
         email,
         password,
-        redirect: false,
+        redirect: true,
+        callbackUrl: '/jobs',
       });
 
+      // 如果 redirect: true 生效了，下面的代码不会执行
       if (res?.error) {
         setError('邮箱或密码错误');
-      } else {
-        router.push('/jobs');
-        router.refresh();
+        setLoading(false);
       }
     } catch {
       setError('登录失败，请稍后重试');
-    } finally {
       setLoading(false);
     }
   };

@@ -16,6 +16,8 @@ import {
   Briefcase,
   Calendar,
   ChevronRight,
+  Globe,
+  Building2,
 } from 'lucide-react';
 
 // 动态导入 ECharts，避免 SSR 问题
@@ -47,6 +49,8 @@ interface AnalyticsData {
   statusDistribution: Array<{ name: string; value: number }>;
   statusCounts: Record<string, number>;
   totalJobs: number;
+  topCompanies: Array<{ name: string; value: number }>;
+  sourceStats: Array<{ name: string; value: number }>;
 }
 
 export default function AnalyticsPage() {
@@ -263,6 +267,108 @@ export default function AnalyticsPage() {
             itemStyle: {
               color: ['#94a3b8', '#3b82f6', '#f59e0b', '#8b5cf6', '#10b981', '#ef4444', '#64748b'][i % 7],
             },
+          })),
+        },
+      ],
+    };
+  }, [data]);
+
+  // 公司分布柱状图配置
+  const companyBarOption = useMemo(() => {
+    if (!data || data.topCompanies.length === 0) return {};
+    const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1'];
+    return {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: '{b}: {c} 个岗位',
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        borderColor: '#e2e8f0',
+        textStyle: { color: '#1e293b', fontSize: 13 },
+        extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-radius: 8px;',
+      },
+      grid: { left: '3%', right: '8%', bottom: '3%', top: '5%', containLabel: true },
+      xAxis: {
+        type: 'value',
+        minInterval: 1,
+        axisLine: { show: false },
+        axisLabel: { color: '#94a3b8', fontSize: 12 },
+        splitLine: { lineStyle: { color: '#f1f5f9' } },
+        axisTick: { show: false },
+      },
+      yAxis: {
+        type: 'category',
+        data: data.topCompanies.map((c) => c.name).reverse(),
+        axisLine: { lineStyle: { color: '#e2e8f0' } },
+        axisLabel: { color: '#475569', fontSize: 12 },
+        axisTick: { show: false },
+      },
+      series: [
+        {
+          type: 'bar',
+          barWidth: '55%',
+          data: data.topCompanies.map((c, i) => ({
+            value: c.value,
+            itemStyle: { color: colors[i % colors.length], borderRadius: [0, 4, 4, 0] },
+          })).reverse(),
+          label: {
+            show: true,
+            position: 'right',
+            formatter: '{c}',
+            fontSize: 12,
+            color: '#64748b',
+          },
+        },
+      ],
+    };
+  }, [data]);
+
+  // 来源平台饼图配置
+  const sourcePieOption = useMemo(() => {
+    if (!data || data.sourceStats.length === 0) return {};
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
+    return {
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}: {c} ({d}%)',
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        borderColor: '#e2e8f0',
+        textStyle: { color: '#1e293b', fontSize: 13 },
+        extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-radius: 8px;',
+      },
+      legend: {
+        bottom: 0,
+        left: 'center',
+        icon: 'circle',
+        itemWidth: 8,
+        itemHeight: 8,
+        textStyle: { fontSize: 12, color: '#64748b' },
+      },
+      series: [
+        {
+          type: 'pie',
+          radius: ['38%', '65%'],
+          center: ['50%', '42%'],
+          avoidLabelOverlap: true,
+          itemStyle: {
+            borderRadius: 6,
+            borderColor: '#fff',
+            borderWidth: 2,
+          },
+          label: {
+            show: true,
+            formatter: '{b}\n{d}%',
+            fontSize: 12,
+            color: '#475569',
+          },
+          labelLine: { length: 10, length2: 8 },
+          emphasis: {
+            label: { fontSize: 14, fontWeight: 'bold' },
+            itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.1)' },
+          },
+          data: data.sourceStats.map((item, i) => ({
+            ...item,
+            itemStyle: { color: colors[i % colors.length] },
           })),
         },
       ],
@@ -547,16 +653,41 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* 状态分布 */}
+        {/* 状态分布 + 来源平台 */}
+        <div className="grid lg:grid-cols-2 gap-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <Award className="w-4 h-4 text-amber-500" />
+                岗位状态分布
+              </h2>
+              <span className="text-xs text-slate-400">当前状态</span>
+            </div>
+            <ReactECharts option={pieOption} style={{ height: '300px' }} />
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <Globe className="w-4 h-4 text-cyan-500" />
+                来源平台分布
+              </h2>
+              <span className="text-xs text-slate-400">渠道构成</span>
+            </div>
+            <ReactECharts option={sourcePieOption} style={{ height: '300px' }} />
+          </div>
+        </div>
+
+        {/* 公司分布 */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-              <Award className="w-4 h-4 text-amber-500" />
-              岗位状态分布
+              <Building2 className="w-4 h-4 text-blue-500" />
+              投递公司 Top 10
             </h2>
-            <span className="text-xs text-slate-400">当前状态</span>
+            <span className="text-xs text-slate-400">按岗位数排序</span>
           </div>
-          <ReactECharts option={pieOption} style={{ height: '300px' }} />
+          <ReactECharts option={companyBarOption} style={{ height: '340px' }} />
         </div>
 
         {/* 漏斗明细表 */}

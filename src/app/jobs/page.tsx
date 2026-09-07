@@ -389,7 +389,7 @@ export default function JobsPage() {
             <div className="flex items-center gap-2">
               <Link
                 href="/analytics"
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
                 title="数据看板"
               >
                 <BarChart3 className="w-4 h-4" />
@@ -452,7 +452,8 @@ export default function JobsPage() {
                 type="text"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                placeholder="搜索岗位名称、公司、地点..."
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(e as unknown as React.FormEvent); }}
+                placeholder="搜索岗位名称、公司、JD、技能..."
                 className="w-full pl-9 pr-9 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-slate-400"
               />
               {keyword && (
@@ -472,6 +473,39 @@ export default function JobsPage() {
               搜索
             </button>
           </div>
+
+          {/* 快速搜索标签 */}
+          {!searchKeyword && (
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              <span className="text-xs text-slate-400 mr-1 self-center">快速搜索：</span>
+              {['大模型', '算法', '产品经理', '前端', '后端', '数据分析', '字节', '阿里', '腾讯'].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => { setKeyword(tag); setSearchKeyword(tag); }}
+                  className="px-2.5 py-1 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-full hover:bg-primary-50 hover:text-primary-600 hover:border-primary-200 transition-colors"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* 搜索结果提示 */}
+          {searchKeyword && (
+            <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
+              <span>已搜索 "<span className="text-primary-600 font-medium">{searchKeyword}</span>"</span>
+              <span className="text-slate-300">·</span>
+              <span>匹配 {jobs.length} 条结果</span>
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="ml-auto text-primary-500 hover:text-primary-600"
+              >
+                清除搜索
+              </button>
+            </div>
+          )}
         </form>
 
         {/* 待办提醒 */}

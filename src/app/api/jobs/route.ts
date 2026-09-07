@@ -3,6 +3,78 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { unstable_cache } from 'next/cache';
 
+// 同义词扩展词典：搜索关键词 → 扩展匹配词列表
+const SYNONYM_MAP: Record<string, string[]> = {
+  '大模型': ['llm', 'gpt', '大语言模型', '生成式ai', 'aigc', '大模型'],
+  '大语言模型': ['llm', 'gpt', '大模型', '生成式ai', 'aigc', '大语言模型'],
+  'llm': ['大模型', 'gpt', '大语言模型', '生成式ai', 'aigc'],
+  'gpt': ['大模型', 'llm', '大语言模型', '生成式ai', 'aigc'],
+  'aigc': ['大模型', 'llm', 'gpt', '生成式ai', '大语言模型'],
+  '生成式ai': ['大模型', 'llm', 'gpt', 'aigc', '大语言模型'],
+  'ai': ['人工智能', 'ai', '大模型', 'llm', '机器学习', '深度学习'],
+  '人工智能': ['ai', '大模型', 'llm', '机器学习', '深度学习'],
+  '机器学习': ['ml', 'machine learning', 'ai', '深度学习'],
+  '深度学习': ['dl', 'deep learning', 'ml', 'ai'],
+  '算法': ['算法', '算法工程师', 'algorithm'],
+  '产品经理': ['pm', '产品', '产品经理'],
+  'pm': ['产品经理', '产品'],
+  '前端': ['前端', 'frontend', 'react', 'vue'],
+  '后端': ['后端', 'backend', 'java', 'go', 'python'],
+  'java': ['后端', 'java'],
+  'python': ['后端', 'python', '算法'],
+  'go': ['后端', 'golang', 'go'],
+  'golang': ['后端', 'go'],
+  'react': ['前端', 'react'],
+  'vue': ['前端', 'vue'],
+  '测试': ['测试', 'qa', '质量', '测试开发'],
+  'qa': ['测试', '质量', '测试开发'],
+  '运维': ['运维', 'devops', 'sre'],
+  'devops': ['运维', 'sre'],
+  'sre': ['运维', 'devops'],
+  '数据分析': ['数据', '数据分析', '数据分析师', 'sql'],
+  '数据分析师': ['数据分析', '数据', 'sql'],
+  '运营': ['运营', '用户运营', '产品运营', '内容运营'],
+  '设计': ['设计', 'ui', 'ux', '设计师'],
+  'ui': ['设计', 'ui设计'],
+  'hr': ['人力资源', 'hr', '招聘'],
+  '人力资源': ['hr', '招聘'],
+  '销售': ['销售', '商务', 'bd'],
+  'bd': ['销售', '商务'],
+  '商务': ['销售', 'bd'],
+  '字节': ['字节跳动', '字节', 'bytedance', '抖音'],
+  '字节跳动': ['字节', 'bytedance', '抖音'],
+  '抖音': ['字节跳动', '字节', 'bytedance'],
+  '阿里': ['阿里巴巴', '阿里', 'alibaba', '淘宝', '天猫'],
+  '阿里巴巴': ['阿里', 'alibaba', '淘宝', '天猫'],
+  '腾讯': ['腾讯', 'tencent', '微信'],
+  '美团': ['美团', 'meituan'],
+  '京东': ['京东', 'jd'],
+  '百度': ['百度', 'baidu'],
+};
+
+// 获取搜索关键词的同义词扩展列表
+function expandKeywords(keyword: string): string[] {
+  const kw = keyword.toLowerCase().trim();
+  if (!kw) return [];
+
+  const result = new Set<string>([kw]);
+
+  // 直接匹配词典
+  if (SYNONYM_MAP[kw]) {
+    SYNONYM_MAP[kw].forEach((s) => result.add(s));
+  }
+
+  // 部分匹配：如果关键词是词典条目的子串，也扩展
+  for (const [key, values] of Object.entries(SYNONYM_MAP)) {
+    if (key.includes(kw) || kw.includes(key)) {
+      result.add(key);
+      values.forEach((v) => result.add(v));
+    }
+  }
+
+  return Array.from(result);
+}
+
 // GET /api/jobs - 获取当前用户的岗位（带缓存 + 最近笔面试事件）
 export async function GET(request: NextRequest) {
   try {
@@ -14,6 +86,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const keyword = searchParams.get('keyword')?.trim().toLowerCase();
+    const expandedKeywords = keyword ? expandKeywords(keyword) : [];
 
     const cacheKey = `${session.user.id}-${status}-${keyword || ''}`;
 
@@ -37,13 +110,17 @@ export async function GET(request: NextRequest) {
         });
 
         let filteredJobs = jobs;
-        if (keyword) {
+        if (expandedKeywords.length > 0) {
           filteredJobs = jobs.filter((job) =>
-            job.title.toLowerCase().includes(keyword) ||
-            job.company.toLowerCase().includes(keyword) ||
-            (job.location && job.location.toLowerCase().includes(keyword)) ||
-            (job.notes && job.notes.toLowerCase().includes(keyword)) ||
-            (job.jdSnapshot && job.jdSnapshot.toLowerCase().includes(keyword))
+            expandedKeywords.some((kw) =>
+              job.title.toLowerCase().includes(kw) ||
+              job.company.toLowerCase().includes(kw) ||
+              (job.location && job.location.toLowerCase().includes(kw)) ||
+              (job.salary && job.salary.toLowerCase().includes(kw)) ||
+              (job.source && job.source.toLowerCase().includes(kw)) ||
+              (job.notes && job.notes.toLowerCase().includes(kw)) ||
+              (job.jdSnapshot && job.jdSnapshot.toLowerCase().includes(kw))
+            )
           );
         }
 

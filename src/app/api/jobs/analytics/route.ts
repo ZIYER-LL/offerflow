@@ -123,6 +123,27 @@ export async function GET(request: NextRequest) {
       { name: '已归档', value: statusCounts.archived },
     ].filter(s => s.value > 0);
 
+    // 6. 按公司统计（Top 10）
+    const companyMap: Record<string, number> = {};
+    for (const job of jobs) {
+      const company = (job as unknown as { company: string }).company || '未知公司';
+      companyMap[company] = (companyMap[company] || 0) + 1;
+    }
+    const topCompanies = Object.entries(companyMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+
+    // 7. 按来源平台统计
+    const sourceMap: Record<string, number> = {};
+    for (const job of jobs) {
+      const source = (job as unknown as { source?: string }).source || '手动添加';
+      sourceMap[source] = (sourceMap[source] || 0) + 1;
+    }
+    const sourceStats = Object.entries(sourceMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -132,6 +153,8 @@ export async function GET(request: NextRequest) {
         statusDistribution,
         statusCounts,
         totalJobs: jobs.length,
+        topCompanies,
+        sourceStats,
       },
     });
   } catch (error) {

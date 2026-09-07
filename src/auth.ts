@@ -65,6 +65,35 @@ export const authOptions: any = {
     strategy: 'jwt' as const,
     maxAge: 30 * 24 * 60 * 60,
   },
+  // 开发环境放宽 cookie 限制，支持 iframe/预览环境中设置 cookie
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: false,
+      },
+    },
+    callbackUrl: {
+      name: `next-auth.callback-url`,
+      options: {
+        sameSite: 'lax',
+        path: '/',
+        secure: false,
+      },
+    },
+    csrfToken: {
+      name: `next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: false,
+      },
+    },
+  },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   callbacks: {
     jwt: async ({ token, user, account }: any) => {
