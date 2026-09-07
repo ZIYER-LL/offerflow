@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') === 'month' ? 'month' : 'week';
 
-    // 一次性获取用户所有岗位（含状态和创建时间），在内存中分组
+    // 一次性获取用户所有岗位，在内存中分组
     const jobs = await prisma.job.findMany({
       where: { userId },
-      select: { id: true, status: true, createdAt: true },
+      select: { id: true, status: true, createdAt: true, company: true, source: true },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
     // 6. 按公司统计（Top 10）
     const companyMap: Record<string, number> = {};
     for (const job of jobs) {
-      const company = (job as unknown as { company: string }).company || '未知公司';
+      const company = job.company || '未知公司';
       companyMap[company] = (companyMap[company] || 0) + 1;
     }
     const topCompanies = Object.entries(companyMap)
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
     // 7. 按来源平台统计
     const sourceMap: Record<string, number> = {};
     for (const job of jobs) {
-      const source = (job as unknown as { source?: string }).source || '手动添加';
+      const source = job.source || '手动添加';
       sourceMap[source] = (sourceMap[source] || 0) + 1;
     }
     const sourceStats = Object.entries(sourceMap)
